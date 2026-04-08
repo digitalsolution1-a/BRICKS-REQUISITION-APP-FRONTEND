@@ -6,15 +6,17 @@ import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
 import Profile from './components/Profile';
 
-// Function to protect routes based on Auth and Roles
+// --- Improved ProtectedRoute ---
+// Handles missing tokens or user data without crashing the app
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user'));
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
 
+  // If not logged in, force to login page
   if (!token) return <Navigate to="/" replace />;
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    // If authenticated but not authorized for this specific area, redirect to requisition form
+  // If roles are restricted and user doesn't have permissions
+  if (allowedRoles.length > 0 && (!user || !allowedRoles.includes(user.role))) {
     return <Navigate to="/submit-requisition" replace />;
   }
 
@@ -71,7 +73,7 @@ function App() {
         {/* Public Entry Point */}
         <Route path="/" element={<Login />} />
 
-        {/* Global Authenticated Route: Submission Form */}
+        {/* Authenticated Route: Submission Form (All logged-in staff) */}
         <Route 
           path="/submit-requisition" 
           element={
@@ -81,7 +83,7 @@ function App() {
           } 
         />
 
-        {/* Global Authenticated Route: Personal Profile & History */}
+        {/* Authenticated Route: Personal Profile & History */}
         <Route 
           path="/profile" 
           element={
@@ -91,7 +93,7 @@ function App() {
           } 
         />
 
-        {/* Management Route: Approval Gateway (Restricted to Management Roles) */}
+        {/* Management Route: Approval Gateway */}
         <Route 
           path="/dashboard" 
           element={
@@ -101,7 +103,7 @@ function App() {
           } 
         />
 
-        {/* Super Admin Route: User & Personnel Management (Admin Only) */}
+        {/* Super Admin Route: Personnel Management */}
         <Route 
           path="/admin/users" 
           element={
