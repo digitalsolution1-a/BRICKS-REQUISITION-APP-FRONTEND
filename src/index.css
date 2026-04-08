@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bricks-blue: #003366;
+  --color-bricks-blue-dark: #002244;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-100 antialiased;
+    margin: 0;
+  }
+}
