@@ -33,7 +33,9 @@ const Dashboard = () => {
 
   const handleAction = async (id, action) => {
     if (!actionComment.trim()) return alert("Audit comment is required.");
-    const isMDOverride = userRole === 'MD' && selectedReq?.currentStage === 'FC';
+    
+    // Logic: MD can override FC, or Admin has general override powers
+    const isOverride = (userRole === 'MD' && selectedReq?.currentStage === 'FC') || userRole === 'ADMIN';
     
     try {
       const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
@@ -42,7 +44,7 @@ const Dashboard = () => {
         comment: actionComment,
         actorRole: user.role,
         actorName: user.name,
-        isOverride: isOverride || userRole === 'ADMIN'
+        isOverride: isOverride // Fixed variable reference here
       }, config);
 
       alert("Action completed.");
@@ -57,7 +59,7 @@ const Dashboard = () => {
   const mdPrimaryQueue = requisitions.filter(r => r.currentStage === 'MD');
   const fcPendingQueue = requisitions.filter(r => r.currentStage === 'FC');
 
-  const renderContent = (data, title, accentColor, buttonLabel, isOverride = false) => (
+  const renderContent = (data, title, accentColor, buttonLabel, isOverrideView = false) => (
     <div className="mb-10 lg:mb-14">
       <div className="flex items-center justify-between mb-4 px-2">
         <h3 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] lg:tracking-[0.4em] text-gray-400 flex items-center gap-2">
@@ -68,32 +70,32 @@ const Dashboard = () => {
         </span>
       </div>
 
-      {/* MOBILE CARD VIEW (Visible on small screens) */}
+      {/* MOBILE CARD VIEW: Responsive Grid */}
       <div className="grid grid-cols-1 gap-4 lg:hidden">
         {data.map((req) => (
-          <div key={req._id} className="bg-white p-6 rounded-[1.5rem] border border-gray-100 shadow-sm">
+          <div key={req._id} className="bg-white p-6 rounded-[1.5rem] border border-gray-100 shadow-sm active:bg-gray-50 transition-colors">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="font-black text-gray-900 text-sm">{req.requesterName}</p>
-                <p className="text-[9px] text-gray-400 font-bold uppercase">{req.department}</p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{req.department}</p>
               </div>
               <p className="font-black text-[#A67C52] text-md">
                 <span className="text-[10px] mr-1 opacity-50">{req.currency}</span>
                 {req.amount.toLocaleString()}
               </p>
             </div>
-            <p className="text-xs text-gray-600 mb-4 font-medium">{req.vendorName}</p>
+            <p className="text-xs text-gray-600 mb-5 font-medium leading-relaxed">{req.vendorName}</p>
             <button 
               onClick={() => setSelectedReq(req)}
-              className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-transform active:scale-95 ${isOverride ? 'bg-blue-600' : 'bg-[#A67C52]'}`}
+              className={`w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-md transition-transform active:scale-[0.98] ${isOverrideView ? 'bg-blue-600' : 'bg-[#A67C52]'}`}
             >
-              {isOverride ? 'Override FC' : buttonLabel}
+              {isOverrideView ? 'Override FC' : buttonLabel}
             </button>
           </div>
         ))}
       </div>
 
-      {/* DESKTOP TABLE VIEW (Visible on LG screens) */}
+      {/* DESKTOP TABLE VIEW */}
       <div className="hidden lg:block bg-white shadow-xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         <table className="w-full text-left">
           <thead>
@@ -117,8 +119,8 @@ const Dashboard = () => {
                   {req.amount.toLocaleString()}
                 </td>
                 <td className="p-8 text-center">
-                  <button onClick={() => setSelectedReq(req)} className={`text-[10px] font-black px-7 py-3 rounded-xl uppercase tracking-widest text-white ${isOverride ? 'bg-blue-600' : 'bg-[#A67C52]'}`}>
-                    {isOverride ? 'Override FC' : buttonLabel}
+                  <button onClick={() => setSelectedReq(req)} className={`text-[10px] font-black px-7 py-3 rounded-xl uppercase tracking-widest text-white ${isOverrideView ? 'bg-blue-600' : 'bg-[#A67C52]'}`}>
+                    {isOverrideView ? 'Override FC' : buttonLabel}
                   </button>
                 </td>
               </tr>
@@ -130,24 +132,24 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] p-4 lg:p-12">
+    <div className="min-h-screen bg-[#fcfcfc] p-4 lg:p-12 pb-20">
       <div className="max-w-7xl mx-auto">
-        {/* Responsive Header */}
+        {/* Header Section */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 lg:mb-16 gap-6">
           <div>
             <h1 className="text-3xl lg:text-4xl font-black text-gray-900 uppercase tracking-tighter">
               {userRole === 'MD' ? 'Executive Command' : 'Dashboard'}
             </h1>
-            <p className="text-[9px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] lg:tracking-[0.4em] mt-1 lg:mt-2">Bricks Mursten Mattoni Ltd. Requestion</p>
+            <p className="text-[9px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] lg:tracking-[0.4em] mt-1 lg:mt-2">Bricks Mursten Mattoni Ltd.</p>
           </div>
 
-          <div className="flex items-center justify-between w-full lg:w-auto gap-4 lg:gap-6">
+          <div className="flex items-center justify-between w-full lg:w-auto gap-4">
             <div className="flex gap-2">
               {userRole === 'ADMIN' && (
-                <button onClick={() => navigate('/admin/users')} className="text-[8px] lg:text-[9px] font-black text-white bg-red-600 px-4 py-2 rounded-lg uppercase">Users</button>
+                <button onClick={() => navigate('/admin/users')} className="text-[8px] lg:text-[9px] font-black text-white bg-red-600 px-4 py-2 rounded-lg uppercase shadow-sm">Users</button>
               )}
               {userRole === 'MD' && (
-                <button onClick={() => navigate('/reports')} className="text-[8px] lg:text-[9px] font-black text-[#A67C52] bg-orange-50 px-4 py-2 rounded-lg uppercase border border-orange-100">Reports</button>
+                <button onClick={() => navigate('/reports')} className="text-[8px] lg:text-[9px] font-black text-[#A67C52] bg-white px-4 py-2 rounded-lg uppercase border border-gray-100 shadow-sm">Reports</button>
               )}
             </div>
 
@@ -155,61 +157,76 @@ const Dashboard = () => {
               <div className="h-8 w-8 lg:h-10 lg:w-10 bg-[#A67C52] rounded-xl flex items-center justify-center text-white font-black text-xs">
                 {user.name?.charAt(0)}
               </div>
-              <div className="text-right hidden sm:block">
-                <p className="font-black text-gray-800 text-[10px] lg:text-xs leading-tight">{user.name}</p>
-                <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[8px] lg:text-[9px] text-red-500 font-bold uppercase">Logout</button>
+              <div className="text-right">
+                <p className="font-black text-gray-800 text-[10px] leading-tight">{user.name}</p>
+                <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[8px] text-red-500 font-bold uppercase block">Logout</button>
               </div>
             </div>
           </div>
         </div>
 
         {loading ? (
-          <div className="py-20 text-center text-[10px] font-black text-gray-300 uppercase animate-pulse">Syncing...</div>
+          <div className="py-20 text-center text-[10px] font-black text-gray-300 uppercase animate-pulse">Syncing Bricks Cloud...</div>
         ) : (
           <>
             {userRole === 'MD' ? (
               <>
                 {renderContent(mdPrimaryQueue, "Items Pending Your Approval", "bg-green-500", "Review & Sign")}
-                {renderContent(fcPendingQueue, "FC Oversight Log", "bg-blue-600", "Override", true)}
+                {renderContent(fcPendingQueue, "FC Oversight Log", "bg-blue-600", "Review Override", true)}
               </>
             ) : (
-              renderContent(requisitions, "Requisition Queue", "bg-[#A67C52]", "Process")
+              renderContent(requisitions, "Requisition Queue", "bg-[#A67C52]", "Process Request")
+            )}
+            
+            {requisitions.length === 0 && (
+              <div className="py-20 text-center rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Queue is clear</p>
+              </div>
             )}
           </>
         )}
       </div>
 
-      {/* MOBILE FRIENDLY MODAL */}
+      {/* MOBILE ACTION DRAWER / MODAL */}
       {selectedReq && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] flex items-end lg:items-center justify-center">
-          <div className="bg-white w-full max-w-4xl rounded-t-[2.5rem] lg:rounded-[3rem] p-8 lg:p-16 relative animate-slide-up max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setSelectedReq(null)} className="absolute top-6 right-8 text-xl font-bold lg:top-10 lg:right-10">✕</button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[999] flex items-end lg:items-center justify-center p-0 lg:p-4">
+          <div className="bg-white w-full max-w-2xl rounded-t-[2rem] lg:rounded-[2.5rem] p-8 lg:p-12 relative animate-slide-up max-h-[95vh] overflow-y-auto shadow-2xl">
+            <button onClick={() => setSelectedReq(null)} className="absolute top-6 right-8 text-gray-400 hover:text-black transition-colors">
+               <span className="text-xl font-bold">✕</span>
+            </button>
             
-            <div className="mb-6 lg:mb-10">
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Processing Request</p>
-                <h2 className="text-2xl lg:text-4xl font-black text-gray-900 leading-tight">{selectedReq.vendorName}</h2>
-                <p className="text-lg lg:text-2xl font-black text-[#A67C52] mt-2">{selectedReq.currency} {selectedReq.amount.toLocaleString()}</p>
+            <div className="mb-8">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Requisition Detail</p>
+                <h2 className="text-2xl lg:text-3xl font-black text-gray-900 leading-tight">{selectedReq.vendorName}</h2>
+                <div className="flex items-center gap-3 mt-3">
+                  <p className="text-xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount.toLocaleString()}</p>
+                  <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-2 py-1 rounded uppercase tracking-tighter">
+                    Stage: {selectedReq.currentStage}
+                  </span>
+                </div>
             </div>
 
-            <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Internal Audit Comment</label>
-            <textarea 
-              className="w-full border border-gray-100 bg-gray-50 p-4 rounded-2xl mb-8 focus:outline-none focus:ring-2 focus:ring-[#A67C52]/20 text-sm" 
-              rows="4"
-              placeholder="Provide reason for approval/decline..." 
-              value={actionComment}
-              onChange={(e) => setActionComment(e.target.value)}
-            />
+            <div className="mb-8">
+              <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Audit Comment</label>
+              <textarea 
+                className="w-full border border-gray-200 bg-gray-50 p-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#A67C52]/20 text-sm font-medium" 
+                rows="3"
+                placeholder="Reason for decision..." 
+                value={actionComment}
+                onChange={(e) => setActionComment(e.target.value)}
+              />
+            </div>
 
-            <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 pb-6">
+            <div className="flex flex-col gap-3 pb-4">
               <button 
                 onClick={() => handleAction(selectedReq._id, 'Approved')} 
-                className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
+                className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
               >
                 Confirm Approval
               </button>
               <button 
                 onClick={() => handleAction(selectedReq._id, 'Declined')} 
-                className="flex-1 bg-red-50 text-red-600 py-4 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-transform"
+                className="w-full bg-white text-red-600 border border-red-100 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform"
               >
                 Decline Request
               </button>
