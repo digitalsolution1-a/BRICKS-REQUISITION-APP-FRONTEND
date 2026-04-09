@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { DEPARTMENTS, HOD_EMAILS } from '../utils/constants';
 
@@ -10,71 +10,106 @@ function RequisitionForm() {
   const [file, setFile] = useState(null);
   
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://bricks-requisition-app-12.onrender.com/api';
-  const user = JSON.parse(localStorage.getItem('user'));
+  
+  // Helper to get fresh user data
+  const getSessionUser = () => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  };
+
+  const user = getSessionUser();
 
   const [formData, setFormData] = useState({
     requestOption: 'New',
     requestType: 'Internal Operation/Request',
-    clientName: '',
-    otherClient: '',
+    clientName: 'N/A',
+    otherClient: 'N/A',
     procurementType: 'Direct Procurement',
     vendorName: '',
-    otherVendor: '',
-    modeOfPayment: 'Cash',
+    otherVendor: 'N/A',
+    modeOfPayment: 'Transfer',
     beneficiaryDetails: '',
     currency: 'NGN',
-    otherCurrency: '',
+    otherCurrency: 'N/A',
     amount: '',
     amountInWords: '',
     dueDate: '',
     requestNarrative: '',
-    department: user?.dept || '',
+    department: user?.dept || user?.department || '',
     hodForApproval: '',
-    // Backend requires all three of these fields:
-    requester: user?.name || '',
-    requesterName: user?.name || '',
+    requesterName: user?.name || user?.username || '', 
     requesterEmail: user?.email || '', 
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
+  const handleSignOut = () => {
+    localStorage.clear();
+    window.location.href = '/';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
-    const data = new FormData();
     
-    // Ensure data types and field names match the strict backend requirements
-    Object.keys(formData).forEach(key => {
-        if (key === 'amount') {
-            data.append(key, Number(formData[key]));
-        } else {
-            data.append(key, formData[key]);
-        }
+    // 1. RE-FETCH USER TO ENSURE ID IS PRESENT
+    const currentUser = getSessionUser();
+    if (!currentUser) {
+      alert("❌ Session Expired. Please log in again.");
+      return;
+    }
+
+    setLoading(true);
+    const data = new FormData();
+
+    // 2. MAP THE MISSING FIELDS MANUALLY
+    const finalPayload = {
+      ...formData,
+      // Ensure 'requester' is the ID string (tried both .id and ._id)
+      requester: currentUser.id || currentUser._id,
+      requesterEmail: currentUser.email,
+      requesterName: currentUser.name || "BRICKS Staff",
+      amount: formData.amount.toString(),
+      // Handle 'Others' logic
+      otherClient: formData.clientName === 'Others' ? formData.otherClient : 'N/A',
+      otherVendor: formData.vendorName === 'OTHERS' ? formData.otherVendor : 'N/A',
+    };
+
+    // 3. VALIDATION CHECK BEFORE SENDING
+    if (!finalPayload.requester || !finalPayload.requesterEmail) {
+      alert("❌ Technical Error: Your user profile is missing an ID or Email. Please contact IT.");
+      setLoading(false);
+      return;
+    }
+
+    // Append all fields to FormData
+    Object.keys(finalPayload).forEach(key => {
+      data.append(key, finalPayload[key] || 'N/A');
     });
 
     if (file) data.append('document', file);
 
     try {
-      await axios.post(`${API_BASE_URL}/requisitions/submit`, data, {
+      const config = {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('token')}` 
         }
-      });
+      };
+
+      await axios.post(`${API_BASE_URL}/requisitions/submit`, data, config);
       alert("✅ REQUISITION SUBMITTED SUCCESSFULLY");
       window.location.reload(); 
     } catch (err) {
-      console.error("Backend Validation Error:", err.response?.data);
-      const serverMsg = err.response?.data?.details || err.response?.data?.error || "Submission Failed";
-      alert(`❌ ERROR: ${serverMsg}`);
+      console.error("SERVER ERROR:", err.response?.data);
+      const details = err.response?.data?.details || "Validation Failure";
+      alert(`❌ Error: ${details}`);
     } finally {
       setLoading(false);
     }
@@ -87,162 +122,111 @@ function RequisitionForm() {
         {/* Header Section */}
         <div className="bg-[#A67C52] p-10 text-white flex justify-between items-center shadow-lg">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION FORM</h1>
-            <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-[0.2em] opacity-80">Requisition Portal</p>
+            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION</h1>
+            <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-widest opacity-80">Operational Portal</p>
           </div>
           <div className="text-right">
-             <p className="font-black text-xs uppercase tracking-tight">{user?.name}</p>
-             <button type="button" onClick={() => {localStorage.clear(); window.location.href='/'}} className="mt-2 text-[9px] uppercase font-black bg-white/10 px-3 py-1.5 rounded-lg hover:bg-red-500 transition-all border border-white/20">Sign Out</button>
+             <p className="font-black text-xs uppercase tracking-tight">{user?.name || "User"}</p>
+             <button onClick={handleSignOut} className="mt-2 text-[9px] uppercase font-black bg-white/10 px-3 py-1.5 rounded-lg hover:bg-red-500 transition-all border border-white/20">Sign Out</button>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
           
-          {/* Section 1: Staff Info (Sending requester, requesterName, and requesterEmail) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
             <div className="flex flex-col">
-              <label htmlFor="requesterName" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
-              <input 
-                id="requesterName"
-                name="requesterName"
-                type="text" 
-                value={formData.requesterName} 
-                onChange={(e) => {
-                    // Update both 'requester' and 'requesterName' simultaneously
-                    const val = e.target.value;
-                    setFormData({ ...formData, requesterName: val, requester: val });
-                }}
-                required
-                className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all"
-              />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester</label>
+              <input type="text" value={formData.requesterName} readOnly className="bg-gray-100 border-b-2 p-3 font-bold text-sm text-gray-500 cursor-not-allowed outline-none" />
             </div>
             <div className="flex flex-col">
-              <label htmlFor="requesterEmail" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Email</label>
-              <input 
-                id="requesterEmail"
-                name="requesterEmail"
-                type="email" 
-                value={formData.requesterEmail} 
-                readOnly 
-                className="bg-gray-100 border-b-2 p-3 outline-none font-bold text-sm text-gray-500 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          {/* Section 2: Core Routing */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex flex-col">
-              <label htmlFor="requestOption" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Request Option</label>
-              <select id="requestOption" name="requestOption" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                <option value="New">New Requisition</option>
-                <option value="Paid">Previously Paid</option>
-              </select>
-            </div>
-            <div className="flex flex-col">
-              <label htmlFor="department" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Department</label>
-              <select id="department" name="department" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} value={formData.department}>
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Department</label>
+              <select name="department" required className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange} value={formData.department}>
                 <option value="">Select Dept</option>
                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
-              <label htmlFor="hodForApproval" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Approving HOD</label>
-              <select id="hodForApproval" name="hodForApproval" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Request Option</label>
+              <select name="requestOption" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange}>
+                <option value="New">New Requisition</option>
+                <option value="Paid">Previously Paid</option>
+              </select>
+            </div>
+            <div className="flex flex-col md:col-span-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Approving HOD</label>
+              <select name="hodForApproval" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange}>
                 <option value="">Select HOD</option>
                 {HOD_EMAILS.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="bg-orange-50/30 p-8 rounded-[2rem] border border-orange-100 space-y-8">
+          <div className="bg-orange-50/20 p-8 rounded-[2rem] border border-orange-100 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex flex-col">
-                <label htmlFor="requestType" className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Request Type</label>
-                <select id="requestType" name="requestType" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                  <option value="Internal Operation/Request">Internal Operation/Request</option>
-                  <option value="Client Service Request">Client Service Request (Third-Party)</option>
-                </select>
-              </div>
-              <div className="flex flex-col">
-                <label htmlFor="procurementType" className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Procurement Type</label>
-                <select id="procurementType" name="procurementType" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                  <option value="Direct Procurement">Direct Procurement</option>
-                  <option value="Vendor Procurement">Vendor Procurement</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="flex flex-col">
-                <label htmlFor="clientName" className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Assignment</label>
-                <select id="clientName" name="clientName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                  <option value="">N/A / Internal</option>
+                <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client</label>
+                <select name="clientName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange}>
+                  <option value="N/A">Internal / General</option>
                   {CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+                {formData.clientName === 'Others' && (
+                  <input name="otherClient" placeholder="Specify Client" className="mt-2 border-b p-2 text-xs italic outline-none" onChange={handleInputChange} />
+                )}
               </div>
               <div className="flex flex-col">
-                <label htmlFor="vendorName" className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Target Vendor</label>
-                <select id="vendorName" name="vendorName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Vendor</label>
+                <select name="vendorName" required className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange}>
                   <option value="">Choose Vendor</option>
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
+                {formData.vendorName === 'OTHERS' && (
+                  <input name="otherVendor" placeholder="Specify Vendor" className="mt-2 border-b p-2 text-xs italic outline-none" onChange={handleInputChange} />
+                )}
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="flex flex-col">
-              <label htmlFor="beneficiaryDetails" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Beneficiary Details</label>
-              <input 
-                id="beneficiaryDetails" 
-                name="beneficiaryDetails" 
-                type="text" 
-                required 
-                className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
-                placeholder="Account Name, Number and Bank"
-                onChange={handleInputChange} 
-              />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount</label>
+              <input name="amount" type="number" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-black text-2xl text-[#A67C52]" onChange={handleInputChange} />
             </div>
             <div className="flex flex-col">
-              <label htmlFor="dueDate" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Required Date</label>
-              <input id="dueDate" name="dueDate" type="date" required className="bg-gray-50 border-b-2 p-3 outline-none font-bold text-sm" onChange={handleInputChange} />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount in Words</label>
+              <input name="amountInWords" type="text" required placeholder="e.g. Ten Thousand Naira Only" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm italic" onChange={handleInputChange} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="flex flex-col">
-              <label htmlFor="amount" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (Value)</label>
-              <input id="amount" name="amount" type="number" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-black text-2xl text-[#A67C52]" onChange={handleInputChange} />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Beneficiary Details</label>
+              <input name="beneficiaryDetails" type="text" required placeholder="Account Name/Number" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange} />
             </div>
             <div className="flex flex-col">
-              <label htmlFor="amountInWords" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (In Words)</label>
-              <input id="amountInWords" name="amountInWords" type="text" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm italic" placeholder="e.g. Five Thousand Naira Only" onChange={handleInputChange} />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Required Date</label>
+              <input name="dueDate" type="date" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange} />
             </div>
           </div>
 
           <div className="flex flex-col">
-            <label htmlFor="requestNarrative" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Justification Narrative</label>
-            <textarea id="requestNarrative" name="requestNarrative" required className="w-full border-2 border-gray-50 p-6 rounded-[2rem] outline-none focus:border-[#A67C52] bg-gray-50 font-bold text-sm leading-relaxed" rows="4" placeholder="Detail the technical or operational need..." onChange={handleInputChange}></textarea>
+            <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Narrative</label>
+            <textarea name="requestNarrative" required className="w-full border-2 border-gray-50 p-6 rounded-[2rem] outline-none focus:border-[#A67C52] bg-gray-50 font-bold text-sm" rows="3" onChange={handleInputChange}></textarea>
           </div>
 
-          <div className="bg-[#A67C52]/5 border-2 border-dashed border-[#A67C52]/20 p-10 rounded-[2.5rem] text-center group hover:bg-[#A67C52]/10 transition-all">
-            <label htmlFor="document-upload" className="cursor-pointer">
-              <p className="text-[10px] font-black text-[#A67C52] uppercase mb-3 tracking-widest">Supporting Documentation</p>
-              <input id="document-upload" name="document" type="file" className="hidden" onChange={handleFileChange} required />
-              <div className="inline-block bg-white px-8 py-3 rounded-xl shadow-sm border border-orange-100 text-sm font-black text-[#A67C52] group-hover:shadow-md transition-all">
-                {file ? `📎 ${file.name}` : "Browse Files"}
+          <div className="bg-[#A67C52]/5 border-2 border-dashed border-[#A67C52]/20 p-10 rounded-[2.5rem] text-center">
+            <label className="cursor-pointer">
+              <input type="file" className="hidden" onChange={handleFileChange} required />
+              <div className="inline-block bg-white px-8 py-3 rounded-xl shadow-sm border border-orange-100 text-sm font-black text-[#A67C52]">
+                {file ? `📎 ${file.name}` : "Upload Support Document"}
               </div>
             </label>
           </div>
 
-          <button 
-            type="submit"
-            disabled={loading} 
-            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-white shadow-2xl transition-all ${
-              loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black'
-            }`}
-          >
-            {loading ? 'Syncing...' : '🚀 Submit Requisition'}
+          <button disabled={loading} className={`w-full py-6 rounded-[2rem] font-black uppercase text-white shadow-2xl transition-all ${loading ? 'bg-gray-400' : 'bg-[#A67C52] hover:bg-black active:scale-95'}`}>
+            {loading ? 'Transmitting...' : 'Submit Requisition'}
           </button>
 
         </form>
