@@ -59,7 +59,7 @@ const Dashboard = () => {
     }
   };
 
-  // Filter Logic for MD
+  // Filter Logic for MD oversight
   const mdPrimaryQueue = requisitions.filter(r => r.currentStage === 'MD');
   const fcPendingQueue = requisitions.filter(r => r.currentStage === 'FC');
 
@@ -90,9 +90,7 @@ const Dashboard = () => {
                   <p className="font-black text-gray-800 text-sm">{req.requesterName}</p>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">{req.department}</p>
                 </td>
-                <td className="p-8">
-                  <p className="text-sm font-bold text-gray-600">{req.vendorName}</p>
-                </td>
+                <td className="p-8 text-sm font-bold text-gray-600">{req.vendorName}</td>
                 <td className="p-8 text-right font-black text-[#A67C52] text-lg">
                   <span className="text-[10px] mr-1 opacity-40">{req.currency}</span>
                   {req.amount.toLocaleString()}
@@ -131,15 +129,15 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-                {user.role === 'Admin' && (
+                {/* STRICT ROLE CHECK: MD sees Analytics, Admin sees Manage Users */}
+                {user.role === 'Admin' ? (
                   <button onClick={() => navigate('/admin/users')} className="text-[9px] font-black text-white bg-red-600 px-5 py-2.5 rounded-xl uppercase tracking-widest shadow-lg shadow-red-900/10">Manage Users</button>
-                )}
-                {user.role === 'MD' && (
+                ) : user.role === 'MD' ? (
                   <button onClick={() => navigate('/reports')} className="text-[9px] font-black text-[#A67C52] bg-orange-50 px-5 py-2.5 rounded-xl uppercase tracking-widest border border-orange-100">System Analytics</button>
-                )}
+                ) : null}
             </div>
 
-            {/* Profile Section */}
+            {/* Account Profile Section */}
             <div className="bg-white px-5 py-2.5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div className="text-right">
                 <p className="font-black text-gray-800 text-xs leading-tight">{user.name}</p>
@@ -150,7 +148,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="h-10 w-10 bg-[#A67C52] rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-orange-900/20">
-                {user.name.charAt(0)}
+                {user.name ? user.name.charAt(0) : 'U'}
               </div>
             </div>
           </div>
