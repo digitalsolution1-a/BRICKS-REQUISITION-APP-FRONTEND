@@ -138,7 +138,7 @@ const Dashboard = () => {
             <h1 className="text-3xl lg:text-4xl font-black text-gray-900 uppercase tracking-tighter">
               {userRole === 'MD' ? 'Executive Command' : 'Dashboard'}
             </h1>
-            <p className="text-[9px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] lg:tracking-[0.4em] mt-1 lg:mt-2">Bricks Mursten Mattoni Fleet</p>
+            <p className="text-[9px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] lg:tracking-[0.4em] mt-1 lg:mt-2">Bricks Mursten Mattoni Ltd. Requestion</p>
           </div>
 
           <div className="flex items-center justify-between w-full lg:w-auto gap-4 lg:gap-6">
