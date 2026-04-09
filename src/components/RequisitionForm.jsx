@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DEPARTMENTS, HOD_EMAILS } from '../utils/constants';
 
@@ -30,7 +30,9 @@ function RequisitionForm() {
     requestNarrative: '',
     department: user?.dept || '',
     hodForApproval: '',
-    requester: user?.name || '', // RENAMED FROM requesterName TO MATCH BACKEND
+    // Backend requires all three of these fields:
+    requester: user?.name || '',
+    requesterName: user?.name || '',
     requesterEmail: user?.email || '', 
   });
 
@@ -49,7 +51,7 @@ function RequisitionForm() {
 
     const data = new FormData();
     
-    // Explicitly mapping keys to ensure data types match backend expectations
+    // Ensure data types and field names match the strict backend requirements
     Object.keys(formData).forEach(key => {
         if (key === 'amount') {
             data.append(key, Number(formData[key]));
@@ -70,7 +72,7 @@ function RequisitionForm() {
       alert("✅ REQUISITION SUBMITTED SUCCESSFULLY");
       window.location.reload(); 
     } catch (err) {
-      console.error("Backend Error Detail:", err.response?.data);
+      console.error("Backend Validation Error:", err.response?.data);
       const serverMsg = err.response?.data?.details || err.response?.data?.error || "Submission Failed";
       alert(`❌ ERROR: ${serverMsg}`);
     } finally {
@@ -80,11 +82,6 @@ function RequisitionForm() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] py-12 px-4">
-      {/* Meta Tag Fix for PWA Requirement */}
-      <head>
-        <meta name="mobile-web-app-capable" content="yes" />
-      </head>
-
       <div className="max-w-4xl mx-auto bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         
         {/* Header Section */}
@@ -101,16 +98,20 @@ function RequisitionForm() {
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
           
-          {/* Section 1: Staff Info */}
+          {/* Section 1: Staff Info (Sending requester, requesterName, and requesterEmail) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
             <div className="flex flex-col">
-              <label htmlFor="requester" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
+              <label htmlFor="requesterName" className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
               <input 
-                id="requester"
-                name="requester"
+                id="requesterName"
+                name="requesterName"
                 type="text" 
-                value={formData.requester} 
-                onChange={handleInputChange}
+                value={formData.requesterName} 
+                onChange={(e) => {
+                    // Update both 'requester' and 'requesterName' simultaneously
+                    const val = e.target.value;
+                    setFormData({ ...formData, requesterName: val, requester: val });
+                }}
                 required
                 className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all"
               />
@@ -241,7 +242,7 @@ function RequisitionForm() {
               loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black'
             }`}
           >
-            {loading ? 'Syncing...' : 'Submit Requisition'}
+            {loading ? 'Syncing...' : '🚀 Submit Requisition'}
           </button>
 
         </form>
