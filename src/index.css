@@ -11,3 +11,32 @@
     margin: 0;
   }
 }
+
+/* --- Professional PWA Notification Styles --- */
+@layer components {
+  .install-banner {
+    @apply fixed bottom-5 left-1/2 -translate-x-1/2 z-[1000]
+           flex items-center justify-between gap-4
+           w-[92%] max-w-md p-4 rounded-2xl
+           bg-bricks-blue text-white shadow-2xl border border-white/10;
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .install-button {
+    @apply bg-white text-bricks-blue px-4 py-2 rounded-xl
+           font-bold text-sm transition-transform active:scale-95
+           hover:bg-gray-100 shadow-sm;
+  }
+
+  /* Smooth entrance animation */
+  @keyframes slideUp {
+    from {
+      transform: translate(-50%, 100%);
+      opacity: 0;
+    }
+    to {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+  }
+}
