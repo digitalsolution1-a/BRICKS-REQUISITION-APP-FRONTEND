@@ -11,16 +11,25 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://bricks-requisition-app-12.onrender.com/api';
+  
+  // 1. Pull user and normalize role for logic
   const user = JSON.parse(localStorage.getItem('user')) || { name: 'User', role: 'Staff' };
+  const userRole = user.role ? user.role.toUpperCase() : 'STAFF';
 
   useEffect(() => {
+    // 2. DEBUG LOG: Check your browser console (F12) to see what the app "thinks" you are.
+    console.log("--- DEBUG: DASHBOARD SESSION ---");
+    console.log("Logged User:", user.email);
+    console.log("Current Role in LocalStorage:", user.role);
+    console.log("Normalized Role:", userRole);
+    console.log("--------------------------------");
+
     fetchPendingRequests();
   }, []);
 
   const fetchPendingRequests = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
-      // Fetches all requisitions so the MD can see both their queue and the FC's queue
       const res = await axios.get(`${API_BASE_URL}/requisitions/pending`, config);
       setRequisitions(res.data);
     } catch (err) {
@@ -31,12 +40,12 @@ const Dashboard = () => {
   };
 
   const handleAction = async (id, action) => {
-    if (!actionComment.trim()) return alert("Audit comment is required for executive actions.");
+    if (!actionComment.trim()) return alert("Audit comment is required.");
     
-    const isMDOverride = user.role === 'MD' && selectedReq?.currentStage === 'FC';
+    const isMDOverride = userRole === 'MD' && selectedReq?.currentStage === 'FC';
     
     if (isMDOverride && action === 'Approved') {
-      const confirm = window.confirm("ATTENTION: You are performing an FC Override. This will be recorded in the permanent audit trail. Continue?");
+      const confirm = window.confirm("ATTENTION: You are performing an FC Override. Continue?");
       if (!confirm) return;
     }
 
@@ -47,10 +56,10 @@ const Dashboard = () => {
         comment: actionComment,
         actorRole: user.role,
         actorName: user.name,
-        isOverride: isMDOverride || user.role === 'Admin'
+        isOverride: isMDOverride || userRole === 'ADMIN'
       }, config);
 
-      alert(isMDOverride ? "FC Stage Bypassed successfully." : "Action completed.");
+      alert("Action completed.");
       setSelectedReq(null);
       setActionComment("");
       fetchPendingRequests();
@@ -59,7 +68,7 @@ const Dashboard = () => {
     }
   };
 
-  // Filter Logic for MD oversight
+  // Logic for MD Oversight
   const mdPrimaryQueue = requisitions.filter(r => r.currentStage === 'MD');
   const fcPendingQueue = requisitions.filter(r => r.currentStage === 'FC');
 
@@ -107,9 +116,6 @@ const Dashboard = () => {
             ))}
           </tbody>
         </table>
-        {data.length === 0 && (
-          <div className="p-16 text-center text-gray-300 text-[10px] font-black uppercase tracking-widest">Queue is clear</div>
-        )}
       </div>
     </div>
   );
@@ -117,37 +123,35 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-[#fcfcfc] p-6 lg:p-12">
       <div className="max-w-7xl mx-auto">
-        
-        {/* Header with Account Profile */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-8">
           <div>
             <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tighter">
-              {user.role === 'MD' ? 'Executive Command' : 'Dashboard'}
+              {userRole === 'MD' ? 'Executive Command' : 'Dashboard'}
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] mt-2">Bricks Mursten Mattoni Fleet</p>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-                {/* STRICT ROLE CHECK: MD sees Analytics, Admin sees Manage Users */}
-                {user.role === 'Admin' ? (
-                  <button onClick={() => navigate('/admin/users')} className="text-[9px] font-black text-white bg-red-600 px-5 py-2.5 rounded-xl uppercase tracking-widest shadow-lg shadow-red-900/10">Manage Users</button>
-                ) : user.role === 'MD' ? (
+                {/* 3. STRICT CASE-INSENSITIVE CHECK */}
+                {userRole === 'ADMIN' && (
+                  <button onClick={() => navigate('/admin/users')} className="text-[9px] font-black text-white bg-red-600 px-5 py-2.5 rounded-xl uppercase tracking-widest">Manage Users</button>
+                )}
+                {userRole === 'MD' && (
                   <button onClick={() => navigate('/reports')} className="text-[9px] font-black text-[#A67C52] bg-orange-50 px-5 py-2.5 rounded-xl uppercase tracking-widest border border-orange-100">System Analytics</button>
-                ) : null}
+                )}
             </div>
 
-            {/* Account Profile Section */}
             <div className="bg-white px-5 py-2.5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div className="text-right">
                 <p className="font-black text-gray-800 text-xs leading-tight">{user.name}</p>
                 <div className="flex gap-2 justify-end mt-0.5">
-                   <button onClick={() => navigate('/profile')} className="text-[9px] text-gray-400 font-bold hover:text-[#A67C52] uppercase tracking-tighter">Profile</button>
+                   <button onClick={() => navigate('/profile')} className="text-[9px] text-gray-400 font-bold hover:text-[#A67C52] uppercase">Profile</button>
                    <span className="text-gray-200 text-[9px]">•</span>
-                   <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[9px] text-red-500 font-bold hover:text-red-700 uppercase tracking-tighter">Sign Out</button>
+                   <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[9px] text-red-500 font-bold hover:text-red-700 uppercase">Sign Out</button>
                 </div>
               </div>
-              <div className="h-10 w-10 bg-[#A67C52] rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-orange-900/20">
+              <div className="h-10 w-10 bg-[#A67C52] rounded-xl flex items-center justify-center text-white font-black">
                 {user.name ? user.name.charAt(0) : 'U'}
               </div>
             </div>
@@ -155,81 +159,36 @@ const Dashboard = () => {
         </div>
 
         {loading ? (
-          <div className="py-40 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest animate-pulse">Syncing Encrypted Ledger...</div>
+          <div className="py-40 text-center text-[10px] font-black text-gray-300 uppercase animate-pulse">Syncing...</div>
         ) : (
           <>
-            {user.role === 'MD' ? (
+            {userRole === 'MD' ? (
               <>
-                {/* Log 1: Direct Approvals */}
                 {renderTable(mdPrimaryQueue, "Items Pending Your Approval", "bg-green-500", "Review & Sign")}
-                
-                {/* Log 2: FC Override Log */}
-                {renderTable(fcPendingQueue, "FC Pending Approvals (Oversight Log)", "bg-blue-600", "Override FC", true)}
+                {renderTable(fcPendingQueue, "FC Pending Approvals (Oversight)", "bg-blue-600", "Override FC", true)}
               </>
             ) : (
-              renderTable(requisitions, "Standard Action Queue", "bg-[#A67C52]", "Review File")
+              renderTable(requisitions, "Action Queue", "bg-[#A67C52]", "Review File")
             )}
           </>
         )}
 
-        {/* Action Modal */}
+        {/* Action Modal Logic remains same but uses actionComment state */}
         {selectedReq && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[3rem] max-w-5xl w-full shadow-2xl relative overflow-hidden border border-white/10">
-              <div className="p-10 md:p-16">
-                <div className="flex justify-between items-start mb-10">
-                  <div>
-                    <span className={`text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3 inline-block ${selectedReq.currentStage === 'FC' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-[#A67C52]'}`}>
-                      {selectedReq.currentStage === 'FC' ? 'OVERRIDE MODE' : 'STANDARD APPROVAL'}
-                    </span>
-                    <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter">{selectedReq.vendorName}</h2>
-                  </div>
-                  <button onClick={() => { setSelectedReq(null); setActionComment(""); }} className="text-gray-300 hover:text-black transition-colors text-2xl font-black">✕</button>
+            <div className="bg-white rounded-[3rem] max-w-5xl w-full p-16 shadow-2xl relative">
+                <button onClick={() => setSelectedReq(null)} className="absolute top-10 right-10 text-2xl">✕</button>
+                <h2 className="text-4xl font-black mb-8">{selectedReq.vendorName}</h2>
+                <textarea 
+                  className="w-full border p-4 rounded-xl mb-6" 
+                  placeholder="Enter comment..." 
+                  value={actionComment}
+                  onChange={(e) => setActionComment(e.target.value)}
+                />
+                <div className="flex gap-4">
+                  <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-green-600 text-white py-4 rounded-xl font-bold">Approve</button>
+                  <button onClick={() => handleAction(selectedReq._id, 'Declined')} className="flex-1 bg-red-50 text-red-600 py-4 rounded-xl font-bold">Decline</button>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-                  <div className="space-y-8">
-                    <div className="bg-gray-50 p-8 rounded-[2.5rem] border border-gray-100">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Executive Comment / Justification</p>
-                      <textarea 
-                        className="w-full bg-white border border-gray-200 rounded-2xl p-6 text-sm font-medium focus:ring-4 focus:ring-orange-100 focus:border-[#A67C52] transition-all outline-none resize-none"
-                        rows="4"
-                        placeholder={selectedReq.currentStage === 'FC' ? "Provide reason for bypassing Financial Controller..." : "Enter payment instructions..."}
-                        value={actionComment}
-                        onChange={(e) => setActionComment(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="flex gap-4">
-                      <button 
-                        onClick={() => handleAction(selectedReq._id, 'Approved')}
-                        className={`flex-1 py-5 rounded-2xl text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all ${selectedReq.currentStage === 'FC' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-900/20' : 'bg-green-600 hover:bg-green-700 shadow-green-900/20'}`}
-                      >
-                        {selectedReq.currentStage === 'FC' ? 'Authorize Override' : 'Confirm Sign-off'}
-                      </button>
-                      <button 
-                        onClick={() => handleAction(selectedReq._id, 'Declined')}
-                        className="flex-1 py-5 rounded-2xl bg-red-50 text-red-600 font-black text-[11px] uppercase tracking-[0.2em] hover:bg-red-100 transition-all"
-                      >
-                        Decline
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="bg-[#A67C52] p-8 rounded-[2.5rem] text-white flex items-center justify-between shadow-xl shadow-orange-900/20">
-                        <div>
-                            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">Total Valuation</p>
-                            <p className="text-3xl font-black tracking-tighter">{selectedReq.currency} {selectedReq.amount.toLocaleString()}</p>
-                        </div>
-                        <button onClick={() => window.open(selectedReq.attachmentUrl, '_blank')} className="bg-white/10 p-4 rounded-2xl border border-white/20 hover:bg-white/30 transition-all">📂</button>
-                    </div>
-                    <div className="bg-gray-50 rounded-[2.5rem] p-8 border border-gray-100 max-h-[300px] overflow-y-auto">
-                      <AuditTimeline history={selectedReq.approvalHistory} />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         )}
