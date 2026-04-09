@@ -90,11 +90,11 @@ const Dashboard = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div>
-            <h1 className="text-[#A67C52] text-4xl font-black tracking-tight uppercase">Approval Gateway</h1>
+            <h1 className="text-[#A67C52] text-4xl font-black tracking-tight uppercase">Pending Approval </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="h-2 w-2 bg-[#A67C52] rounded-full animate-pulse"></span>
               <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-                {user.role === 'Admin' ? 'System Administrator Control' : 'Fleet Operations Active'}
+                {user.role === 'Admin' ? 'System Administrator Control' : 'Active Requisitions'}
               </p>
             </div>
           </div>
