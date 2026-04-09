@@ -23,8 +23,8 @@ const Dashboard = () => {
       const config = {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       };
-      // Updated to use the cloud API URL
-      const res = await axios.get(`${API_BASE_URL}/requisitions/pending`, config);
+      // UPDATED: Now passing the user role to the backend to filter pending items by stage
+      const res = await axios.get(`${API_BASE_URL}/requisitions/pending/${user.role}`, config);
       setRequisitions(res.data);
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -39,18 +39,22 @@ const Dashboard = () => {
     navigate('/');
   };
 
-  // UPDATED: Function to view cloud-hosted attachments
   const handleDownload = (fullUrl) => {
     if (!fullUrl) return alert("No document attached.");
-    // Since Cloudinary provides the full HTTPS URL, we just open it directly
     window.open(fullUrl, '_blank');
   };
 
   const handleAction = async (id, action) => {
     const isOverride = user.role === 'Admin' && action === 'Approved';
-    const promptMessage = isOverride 
-      ? "🚀 SUPER ADMIN OVERRIDE: Provide a reason to fast-track this to PAID status:"
-      : `Enter comment for ${action}:`;
+    const isMD = user.role === 'MD' && action === 'Approved';
+    
+    let promptMessage = `Enter comment for ${action}:`;
+    
+    if (isOverride) {
+      promptMessage = "🚀 SUPER ADMIN OVERRIDE: Provide a reason to fast-track this to PAID status:";
+    } else if (isMD) {
+      promptMessage = "🖋️ MD INSTRUCTIONS: Enter final payment instructions for the Accountant:";
+    }
 
     const comment = prompt(promptMessage);
     if (comment === null) return; 
@@ -60,7 +64,6 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       };
       
-      // Updated to use the cloud API URL
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
         comment,
@@ -90,11 +93,13 @@ const Dashboard = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div>
-            <h1 className="text-[#A67C52] text-4xl font-black tracking-tight uppercase">Pending Approval </h1>
+            <h1 className="text-[#A67C52] text-4xl font-black tracking-tight uppercase">
+              {user.role === 'Accountant' ? 'Disbursement Queue' : 'Pending Approval'}
+            </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="h-2 w-2 bg-[#A67C52] rounded-full animate-pulse"></span>
               <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-                {user.role === 'Admin' ? 'System Administrator Control' : 'Active Requisitions'}
+                {user.role} Dashboard — BRICKS Limited
               </p>
             </div>
           </div>
@@ -127,8 +132,12 @@ const Dashboard = () => {
         {/* Loading / Table Section */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
-             <div className="w-12 h-12 border-4 border-orange-100 border-t-[#A67C52] rounded-full animate-spin"></div>
-             <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Syncing BRICKS Fleet Data...</p>
+              <div className="w-12 h-12 border-4 border-orange-100 border-t-[#A67C52] rounded-full animate-spin"></div>
+              <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Syncing Fleet Pipeline...</p>
+          </div>
+        ) : requisitions.length === 0 ? (
+          <div className="bg-white p-20 rounded-[2rem] text-center border border-dashed border-gray-200">
+            <p className="text-gray-400 font-black uppercase tracking-widest text-sm">No requisitions currently awaiting your action.</p>
           </div>
         ) : (
           <div className="bg-white shadow-2xl rounded-[2rem] overflow-hidden border border-gray-100">
@@ -139,7 +148,7 @@ const Dashboard = () => {
                     <th className="p-8">Requester</th>
                     <th className="p-8">Vendor / Narrative</th>
                     <th className="p-8 text-right">Valuation</th>
-                    <th className="p-8 text-center">Stage</th>
+                    <th className="p-8 text-center">Current Stage</th>
                     <th className="p-8 text-center">Action</th>
                   </tr>
                 </thead>
@@ -156,7 +165,7 @@ const Dashboard = () => {
                           onClick={() => setSelectedReq(req)} 
                           className="text-[9px] font-black text-[#A67C52] underline uppercase tracking-widest mt-1 hover:text-[#8b6542]"
                         >
-                          View Details
+                          View Full Brief
                         </button>
                       </td>
                       <td className="p-8 text-right">
@@ -175,7 +184,7 @@ const Dashboard = () => {
                           onClick={() => setSelectedReq(req)}
                           className="bg-[#A67C52] text-white text-[10px] font-black px-6 py-3 rounded-xl shadow-lg hover:bg-black transition-all uppercase tracking-widest"
                         >
-                          Process
+                          {user.role === 'Accountant' ? 'Pay' : 'Process'}
                         </button>
                       </td>
                     </tr>
@@ -198,17 +207,25 @@ const Dashboard = () => {
                   
                   <div className="space-y-8">
                     <div>
-                      <h2 className="text-3xl font-black text-[#A67C52] uppercase tracking-tighter">Requisition Details</h2>
-                      <p className="text-gray-400 text-[10px] font-bold uppercase mt-1 tracking-widest">ID: {selectedReq._id}</p>
+                      <h2 className="text-3xl font-black text-[#A67C52] uppercase tracking-tighter">Requisition Brief</h2>
+                      <p className="text-gray-400 text-[10px] font-bold uppercase mt-1 tracking-widest">Reference: {selectedReq._id}</p>
                     </div>
+
+                    {/* NEW: MD Instruction Alert for Accountant View */}
+                    {user.role === 'Accountant' && selectedReq.mdInstructions && (
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-2xl">
+                         <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">MD Final Instructions</p>
+                         <p className="text-blue-900 font-bold italic text-sm">"{selectedReq.mdInstructions}"</p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <p className="text-[9px] font-black text-gray-400 uppercase">Amount Due</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase">Valuation</p>
                         <p className="text-xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount.toLocaleString()}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <p className="text-[9px] font-black text-gray-400 uppercase">Expected Date</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase">Settlement Date</p>
                         <p className="text-sm font-bold text-gray-800">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -220,26 +237,27 @@ const Dashboard = () => {
                       </p>
                     </div>
 
-                    {/* Supporting Document Section */}
+                    {/* Document Download Section */}
                     <div className="bg-[#A67C52] p-6 rounded-3xl text-white flex items-center justify-between shadow-xl">
-                      <div>
-                        <p className="text-[9px] font-black opacity-60 uppercase tracking-widest">Support Files</p>
-                        <p className="text-sm font-bold truncate max-w-[180px]">{selectedReq.attachmentName || "View Invoice"}</p>
+                      <div className="flex-1 mr-4">
+                        <p className="text-[9px] font-black opacity-60 uppercase tracking-widest">Attachment</p>
+                        <p className="text-sm font-bold truncate">{selectedReq.attachmentName || "Supporting Document"}</p>
                       </div>
                       <button 
                         onClick={() => handleDownload(selectedReq.attachmentUrl)}
                         className="bg-white text-[#A67C52] px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-orange-50 transition-all flex items-center gap-2"
                       >
-                        📂 Open Cloud Document
+                        📂 Open Cloud File
                       </button>
                     </div>
 
+                    {/* Action Footer */}
                     <div className="flex gap-4 pt-6 border-t border-gray-50">
                       <button 
                         onClick={() => handleAction(selectedReq._id, 'Approved')}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-900/20"
                       >
-                        {user.role === 'Admin' ? 'Super Override' : 'Approve'}
+                        {user.role === 'Accountant' ? 'Confirm Payment' : 'Approve'}
                       </button>
                       <button 
                         onClick={() => handleAction(selectedReq._id, 'Declined')}
@@ -250,6 +268,7 @@ const Dashboard = () => {
                     </div>
                   </div>
 
+                  {/* Audit History Timeline */}
                   <div className="bg-gray-50 rounded-[2.5rem] p-8 border border-gray-100">
                     <AuditTimeline history={selectedReq.approvalHistory} />
                   </div>
