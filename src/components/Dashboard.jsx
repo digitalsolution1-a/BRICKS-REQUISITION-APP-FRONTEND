@@ -11,11 +11,12 @@ const Dashboard = () => {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://bricks-requisition-app-12.onrender.com/api';
   
+  // Parse user and ensure role-based defaults
   const user = JSON.parse(localStorage.getItem('user')) || { name: 'User', role: 'Staff', dept: 'N/A' };
 
   useEffect(() => {
     fetchPendingRequests();
-  }, []);
+  }, [user.role]);
 
   const fetchPendingRequests = async () => {
     try {
@@ -23,16 +24,11 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       };
       
-      // Fetching pending items for the user role
       const res = await axios.get(`${API_BASE_URL}/requisitions/pending/${user.role}`, config);
       
       let displayData = res.data;
 
-      /**
-       * MD SPECIFIC VIEW LOGIC:
-       * Filters the list so the MD only sees items at the 'MD' stage 
-       * OR items currently pending with the 'FC' for override capability.
-       */
+      // MD SPECIFIC VIEW: Only MD stage or FC stage for override
       if (user.role === 'MD') {
         displayData = res.data.filter(req => 
           req.currentStage === 'MD' || req.currentStage === 'FC'
@@ -48,8 +44,7 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.clear(); // Clear all to ensure no role-ghosting
     navigate('/');
   };
 
@@ -61,7 +56,7 @@ const Dashboard = () => {
   const handleAction = async (id, action) => {
     const targetReq = requisitions.find(r => r._id === id);
     
-    // Logic flags for special prompts
+    // Strict Role Checking
     const isSuperAdmin = user.role === 'Admin' && action === 'Approved';
     const isMDOverride = user.role === 'MD' && targetReq?.currentStage === 'FC' && action === 'Approved';
     const isStandardMD = user.role === 'MD' && targetReq?.currentStage === 'MD' && action === 'Approved';
@@ -69,11 +64,11 @@ const Dashboard = () => {
     let promptMessage = `Enter comment for ${action}:`;
     
     if (isSuperAdmin) {
-      promptMessage = "🚀 SUPER ADMIN OVERRIDE: Provide reason to force PAID status:";
+      promptMessage = "🚀 ADMIN SYSTEM OVERRIDE: Provide reason to force PAID status:";
     } else if (isMDOverride) {
-      promptMessage = "⚠️ MD OVERRIDE (FC BYPASS): Provide reason for fast-tracking this request:";
+      promptMessage = "⚠️ MD OVERRIDE (FC BYPASS): Reason for fast-tracking to ACCOUNTS:";
     } else if (isStandardMD) {
-      promptMessage = "🖋️ MD INSTRUCTIONS: Enter final payment instructions for the Accountant:";
+      promptMessage = "🖋️ MD FINAL INSTRUCTIONS: Enter payment details for the Accountant:";
     }
 
     const comment = prompt(promptMessage);
@@ -89,18 +84,10 @@ const Dashboard = () => {
         comment,
         actorRole: user.role,
         actorName: user.name,
-        // Backend uses this flag to skip the FC stage if MD approves an FC item
         isOverride: isMDOverride || isSuperAdmin 
       }, config);
-      
-      if (window.Notification && Notification.permission === "granted") {
-        new Notification("BRICKS Fleet Update", {
-          body: `Requisition processed: ${action}`,
-          icon: "/logo192.png"
-        });
-      }
 
-      alert(isMDOverride ? "FC Bypass Successful: Sent to Accountant." : `Action processed successfully`);
+      alert(isMDOverride ? "FC Bypass Successful: Request moved to ACCOUNTS." : `Action processed.`);
       setSelectedReq(null);
       fetchPendingRequests(); 
     } catch (err) {
@@ -109,43 +96,46 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] p-6 lg:p-12">
+    <div className="min-h-screen bg-[#f8f9fa] p-6 lg:p-12 font-sans">
       <div className="max-w-7xl mx-auto">
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div>
             <h1 className="text-[#A67C52] text-4xl font-black tracking-tight uppercase">
-              {user.role === 'Accountant' ? 'Disbursement Queue' : 
-               user.role === 'MD' ? 'Executive Review' : 'Pending Approval'}
+              {user.role === 'Accountant' ? 'Disbursement' : 
+               user.role === 'MD' ? 'Executive Review' : 
+               user.role === 'Admin' ? 'System Dashboard' : 'Pending Approvals'}
             </h1>
             <div className="flex items-center gap-2 mt-2">
-              <span className="h-2 w-2 bg-[#A67C52] rounded-full animate-pulse"></span>
+              <span className={`h-2 w-2 rounded-full animate-pulse ${user.role === 'Admin' ? 'bg-red-500' : 'bg-[#A67C52]'}`}></span>
               <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-                {user.role} Control — BRICKS Fleet Management
+                {user.role} Authorization Mode — BRICKS Fleet
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
+            {/* ONLY Show User Management to ADMIN, not MD */}
             {user.role === 'Admin' && (
               <button 
                 onClick={() => navigate('/admin/users')}
-                className="hidden md:block text-[10px] font-black text-[#A67C52] hover:text-[#8b6542] uppercase tracking-widest bg-orange-50 px-4 py-2 rounded-lg transition-colors"
+                className="hidden md:block text-[10px] font-black text-red-600 hover:text-white hover:bg-red-600 uppercase tracking-widest bg-red-50 px-4 py-2 rounded-lg transition-all border border-red-100"
               >
-                User Management
+                Manage Users
               </button>
             )}
+            
             <div className="bg-white px-4 py-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div className="text-right">
                 <p className="font-black text-gray-800 text-xs leading-tight">{user.name}</p>
                 <div className="flex gap-2 justify-end">
                    <button onClick={() => navigate('/profile')} className="text-[9px] text-gray-400 font-bold hover:text-[#A67C52] uppercase tracking-tighter">Profile</button>
                    <span className="text-gray-200 text-[9px]">•</span>
-                   <button onClick={handleLogout} className="text-[9px] text-red-500 font-bold hover:text-red-700 uppercase tracking-tighter">Sign Out</button>
+                   <button onClick={handleLogout} className="text-[9px] text-red-500 font-bold hover:text-red-700 uppercase tracking-tighter">Logout</button>
                 </div>
               </div>
-              <div className="h-10 w-10 bg-[#A67C52] rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-orange-900/20">
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold shadow-lg ${user.role === 'Admin' ? 'bg-black' : 'bg-[#A67C52]'}`}>
                 {user.name.charAt(0)}
               </div>
             </div>
@@ -156,11 +146,11 @@ const Dashboard = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
               <div className="w-12 h-12 border-4 border-orange-100 border-t-[#A67C52] rounded-full animate-spin"></div>
-              <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Syncing Fleet Pipeline...</p>
+              <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Accessing Maritime Ledger...</p>
           </div>
         ) : requisitions.length === 0 ? (
           <div className="bg-white p-20 rounded-[2rem] text-center border border-dashed border-gray-200">
-            <p className="text-gray-400 font-black uppercase tracking-widest text-sm">No requisitions currently awaiting your action.</p>
+            <p className="text-gray-400 font-black uppercase tracking-widest text-sm">No active requisitions require your signature.</p>
           </div>
         ) : (
           <div className="bg-white shadow-2xl rounded-[2rem] overflow-hidden border border-gray-100">
@@ -169,10 +159,10 @@ const Dashboard = () => {
                 <thead>
                   <tr className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 border-b border-gray-100">
                     <th className="p-8">Requester</th>
-                    <th className="p-8">Vendor / Narrative</th>
+                    <th className="p-8">Vendor / Details</th>
                     <th className="p-8 text-right">Valuation</th>
-                    <th className="p-8 text-center">Status/Stage</th>
-                    <th className="p-8 text-center">Action</th>
+                    <th className="p-8 text-center">Stage</th>
+                    <th className="p-8 text-center">Command</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -186,9 +176,9 @@ const Dashboard = () => {
                         <p className="text-sm font-bold text-gray-600">{req.vendorName}</p>
                         <button 
                           onClick={() => setSelectedReq(req)} 
-                          className="text-[9px] font-black text-[#A67C52] underline uppercase tracking-widest mt-1 hover:text-[#8b6542]"
+                          className="text-[9px] font-black text-[#A67C52] underline uppercase tracking-widest mt-1"
                         >
-                          View Full Brief
+                          View Dossier
                         </button>
                       </td>
                       <td className="p-8 text-right">
@@ -201,19 +191,20 @@ const Dashboard = () => {
                         <span className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border ${
                           req.currentStage === 'FC' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-orange-50 text-[#A67C52] border-orange-100'
                         }`}>
-                          {req.currentStage} {req.currentStage === 'FC' && user.role === 'MD' ? '(Override Available)' : ''}
+                          {req.currentStage} {req.currentStage === 'FC' && user.role === 'MD' ? '— OVERRIDE' : ''}
                         </span>
                       </td>
                       <td className="p-8 text-center">
                         <button 
                           onClick={() => setSelectedReq(req)}
-                          className={`text-[10px] font-black px-6 py-3 rounded-xl shadow-lg transition-all uppercase tracking-widest ${
+                          className={`text-[10px] font-black px-6 py-3 rounded-xl shadow-md transition-all uppercase tracking-widest ${
                             req.currentStage === 'FC' && user.role === 'MD' 
                             ? 'bg-blue-600 text-white hover:bg-blue-700' 
                             : 'bg-[#A67C52] text-white hover:bg-black'
                           }`}
                         >
-                          {user.role === 'Accountant' ? 'Pay' : req.currentStage === 'FC' && user.role === 'MD' ? 'Override' : 'Process'}
+                          {user.role === 'Accountant' ? 'Pay' : 
+                           req.currentStage === 'FC' && user.role === 'MD' ? 'Override FC' : 'Review'}
                         </button>
                       </td>
                     </tr>
@@ -228,46 +219,37 @@ const Dashboard = () => {
         {selectedReq && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
             <div className="bg-white rounded-[3rem] max-w-5xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
-              
               <button onClick={() => setSelectedReq(null)} className="absolute top-8 right-8 text-gray-400 hover:text-black font-black text-xl">✕</button>
 
               <div className="p-10 md:p-16">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-                  
                   <div className="space-y-8">
                     <div>
-                      <h2 className="text-3xl font-black text-[#A67C52] uppercase tracking-tighter">Requisition Brief</h2>
-                      <p className="text-gray-400 text-[10px] font-bold uppercase mt-1 tracking-widest">Ref: {selectedReq._id}</p>
+                      <h2 className="text-3xl font-black text-[#A67C52] uppercase tracking-tighter">Approval Dossier</h2>
+                      <p className="text-gray-400 text-[10px] font-bold uppercase mt-1">ID: {selectedReq._id}</p>
                     </div>
-
-                    {user.role === 'Accountant' && selectedReq.mdInstructions && (
-                      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-2xl">
-                         <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">MD Final Instructions</p>
-                         <p className="text-blue-900 font-bold italic text-sm">"{selectedReq.mdInstructions}"</p>
-                      </div>
-                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <p className="text-[9px] font-black text-gray-400 uppercase">Valuation</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase">Grand Total</p>
                         <p className="text-xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount.toLocaleString()}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <p className="text-[9px] font-black text-gray-400 uppercase">Settlement Date</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase">Target Date</p>
                         <p className="text-sm font-bold text-gray-800">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
                       </div>
                     </div>
 
                     <div className="bg-[#A67C52] p-6 rounded-3xl text-white flex items-center justify-between shadow-xl">
-                      <div className="flex-1 mr-4">
-                        <p className="text-[9px] font-black opacity-60 uppercase tracking-widest">Attachment</p>
-                        <p className="text-sm font-bold truncate">{selectedReq.attachmentName || "Supporting Document"}</p>
+                      <div className="flex-1 mr-4 overflow-hidden">
+                        <p className="text-[9px] font-black opacity-60 uppercase tracking-widest">Supporting Evidence</p>
+                        <p className="text-sm font-bold truncate">{selectedReq.attachmentName || "View Attachment"}</p>
                       </div>
                       <button 
                         onClick={() => handleDownload(selectedReq.attachmentUrl)}
-                        className="bg-white text-[#A67C52] px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-orange-50 transition-all"
+                        className="bg-white text-[#A67C52] px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-orange-50 transition-all shrink-0"
                       >
-                        📂 Open Cloud File
+                        📂 Open Cloud
                       </button>
                     </div>
 
@@ -278,8 +260,8 @@ const Dashboard = () => {
                            selectedReq.currentStage === 'FC' && user.role === 'MD' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
                         }`}
                       >
-                        {selectedReq.currentStage === 'FC' && user.role === 'MD' ? 'Bypass FC & Approve' : 
-                         user.role === 'Accountant' ? 'Confirm Payment' : 'Approve'}
+                        {selectedReq.currentStage === 'FC' && user.role === 'MD' ? 'Fast-Track (MD Override)' : 
+                         user.role === 'Accountant' ? 'Execute Payment' : 'Approve'}
                       </button>
                       <button 
                         onClick={() => handleAction(selectedReq._id, 'Declined')}
