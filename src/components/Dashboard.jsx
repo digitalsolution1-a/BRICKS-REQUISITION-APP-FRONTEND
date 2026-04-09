@@ -30,13 +30,15 @@ const Dashboard = () => {
   };
 
   const handleAction = async (id, action) => {
-    // Basic validation: approval/decline should have context
-    if (!actionComment.trim()) {
-      return alert("Please provide instructions or comments before processing.");
-    }
+    if (!actionComment.trim()) return alert("Comment required for audit transparency.");
     
     const isMDOverride = user.role === 'MD' && selectedReq?.currentStage === 'FC';
-    const isSuperAdmin = user.role === 'Admin';
+    
+    // Safety check for Override
+    if (isMDOverride && action === 'Approved') {
+      const confirmBypass = window.confirm("You are acting on behalf of the Financial Controller. This will move the request directly to the next stage. Proceed?");
+      if (!confirmBypass) return;
+    }
 
     try {
       const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
@@ -45,79 +47,68 @@ const Dashboard = () => {
         comment: actionComment,
         actorRole: user.role,
         actorName: user.name,
-        isOverride: isMDOverride || isSuperAdmin 
+        isOverride: isMDOverride || user.role === 'Admin'
       }, config);
 
-      alert(isMDOverride ? "FC Bypass Successful: Sent to Accounts." : "Action processed successfully.");
+      alert(isMDOverride ? "FC Stage Authorized by MD. Moving forward." : "Action processed.");
       setSelectedReq(null);
       setActionComment("");
       fetchPendingRequests();
     } catch (err) {
-      alert("Error: " + (err.response?.data?.error || "Server communication failed"));
+      alert("Error: " + (err.response?.data?.error || "Action failed"));
     }
   };
 
-  // Logic to separate MD views into distinct queues
-  const mdPersonalQueue = requisitions.filter(r => r.currentStage === 'MD');
+  // MD Logic: Segmenting the dashboard
+  const mdPrimaryQueue = requisitions.filter(r => r.currentStage === 'MD');
   const mdFCOversight = requisitions.filter(r => r.currentStage === 'FC');
 
-  const renderTable = (data, title, accentColor = "bg-[#A67C52]") => (
-    <div className="mb-12">
-      <div className="flex items-center gap-3 mb-6">
-        <div className={`h-4 w-1 rounded-full ${accentColor}`}></div>
-        <h3 className="text-sm font-black uppercase tracking-widest text-gray-500">
-          {title} ({data.length})
+  const renderTable = (data, title, accentColor, buttonLabel, isOverride = false) => (
+    <div className="mb-14">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 flex items-center gap-3">
+          <span className={`h-2 w-2 rounded-full ${accentColor}`}></span> {title}
         </h3>
       </div>
-      <div className="bg-white shadow-xl rounded-[2rem] overflow-hidden border border-gray-100">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 border-b border-gray-100">
-                <th className="p-8">Requester</th>
-                <th className="p-8">Vendor / Description</th>
-                <th className="p-8 text-right">Valuation</th>
-                <th className="p-8 text-center">Action</th>
+      <div className="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 border-b border-gray-100">
+              <th className="p-8">Originator</th>
+              <th className="p-8">Vendor Details</th>
+              <th className="p-8 text-right">Amount</th>
+              <th className="p-8 text-center">Command</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {data.map((req) => (
+              <tr key={req._id} className="hover:bg-gray-50/50 transition-all">
+                <td className="p-8">
+                  <p className="font-black text-gray-800 text-sm">{req.requesterName}</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase">{req.department}</p>
+                </td>
+                <td className="p-8">
+                  <p className="text-sm font-bold text-gray-600">{req.vendorName}</p>
+                </td>
+                <td className="p-8 text-right font-black text-[#A67C52] text-lg">
+                  <span className="text-[10px] mr-1 opacity-40">{req.currency}</span>
+                  {req.amount.toLocaleString()}
+                </td>
+                <td className="p-8 text-center">
+                  <button 
+                    onClick={() => setSelectedReq(req)} 
+                    className={`text-[10px] font-black px-6 py-3 rounded-xl uppercase tracking-widest shadow-md transition-all hover:scale-105 text-white ${isOverride ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#A67C52] hover:bg-black'}`}
+                  >
+                    {buttonLabel}
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.map((req) => (
-                <tr key={req._id} className="hover:bg-orange-50/20 transition-all">
-                  <td className="p-8">
-                    <p className="font-black text-gray-800">{req.requesterName}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{req.department}</p>
-                  </td>
-                  <td className="p-8">
-                    <p className="text-sm font-bold text-gray-600">{req.vendorName}</p>
-                  </td>
-                  <td className="p-8 text-right">
-                    <p className="font-black text-[#A67C52] text-lg">
-                      <span className="text-[10px] mr-1 opacity-50">{req.currency}</span>
-                      {req.amount.toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="p-8 text-center">
-                    <button 
-                      onClick={() => setSelectedReq(req)} 
-                      className={`text-[10px] font-black px-6 py-2 rounded-xl uppercase tracking-widest transition-all ${
-                        req.currentStage === 'FC' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-[#A67C52] text-white hover:bg-black'
-                      }`}
-                    >
-                      {req.currentStage === 'FC' ? 'Review & Override' : 'Process Request'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {data.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="p-12 text-center text-gray-300 font-bold uppercase text-[10px] tracking-widest">
-                    No items in this queue
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
+        {data.length === 0 && (
+          <div className="p-16 text-center text-gray-300 text-[10px] font-black uppercase tracking-widest">No pending items found</div>
+        )}
       </div>
     </div>
   );
@@ -126,94 +117,68 @@ const Dashboard = () => {
     <div className="min-h-screen bg-[#fcfcfc] p-6 lg:p-12">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-6">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-16">
           <div>
-            <h1 className="text-gray-900 text-4xl font-black tracking-tight uppercase">
-              {user.role === 'MD' ? 'Executive Dashboard' : 'Digital Approvals'}
+            <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tighter">
+              {user.role === 'MD' ? 'Executive Desk' : 'Digital Approvals'}
             </h1>
-            <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-2">
-              BRICKS MURSTEN MATTONI
-            </p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] mt-2">Bricks Mursten Mattoni</p>
           </div>
-          
-          <div className="flex items-center gap-6">
-            {/* STRICT ADMIN CHECK: Hidden from MD */}
+
+          <div className="flex items-center gap-4">
             {user.role === 'Admin' && (
-              <button 
-                onClick={() => navigate('/admin/users')}
-                className="text-[10px] font-black text-white bg-red-600 px-6 py-3 rounded-2xl uppercase tracking-widest shadow-lg shadow-red-900/20 hover:scale-105 transition-transform"
-              >
-                User Management
+              <button onClick={() => navigate('/admin/users')} className="text-[10px] font-black text-white bg-red-600 px-6 py-3 rounded-2xl uppercase tracking-widest">
+                Manage Users
               </button>
             )}
-            
-            <div className="flex items-center gap-4 bg-white p-2 pr-6 rounded-3xl border border-gray-100 shadow-sm">
-              <div className="h-10 w-10 bg-[#A67C52] rounded-2xl flex items-center justify-center text-white font-black text-sm">
-                {user.name.charAt(0)}
-              </div>
-              <div className="text-right">
-                <p className="font-black text-gray-800 text-xs leading-none mb-1">{user.name}</p>
-                <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[9px] text-red-500 font-black uppercase tracking-tighter hover:underline">
-                  Sign Out
-                </button>
-              </div>
-            </div>
+            {user.role === 'MD' && (
+              <button onClick={() => navigate('/reports')} className="text-[10px] font-black text-[#A67C52] bg-orange-50 px-6 py-3 rounded-2xl uppercase tracking-widest border border-orange-100">
+                System Analytics
+              </button>
+            )}
+            <button onClick={() => { localStorage.clear(); navigate('/'); }} className="h-12 w-12 flex items-center justify-center bg-white border border-gray-100 rounded-2xl shadow-sm text-red-500 hover:bg-red-50 transition-colors">✕</button>
           </div>
         </div>
 
-        {/* Content Section */}
         {loading ? (
-          <div className="py-40 text-center">
-            <div className="inline-block w-8 h-8 border-4 border-orange-100 border-t-[#A67C52] rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest">Securing Ledger Connection...</p>
-          </div>
+          <div className="py-40 text-center animate-pulse text-[10px] font-black text-gray-300 uppercase tracking-widest">Loading Ledger...</div>
         ) : (
           <>
             {user.role === 'MD' ? (
               <>
-                {renderTable(mdPersonalQueue, "Immediate Executive Action Required", "bg-green-500")}
-                {renderTable(mdFCOversight, "Financial Controller Oversight (FC Backlog)", "bg-blue-600")}
+                {renderTable(mdPrimaryQueue, "Standard MD Approval Queue", "bg-green-500", "Final Review")}
+                {renderTable(mdFCOversight, "FC Oversight (MD Override Available)", "bg-blue-500", "Act for FC", true)}
               </>
             ) : (
-              renderTable(requisitions, "Pending Approvals")
+              renderTable(requisitions, "Pending Approvals", "bg-[#A67C52]", "Review File")
             )}
           </>
         )}
 
-        {/* Modal Overlay with Inline Comment Box */}
+        {/* Action Modal */}
         {selectedReq && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[3rem] max-w-5xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
-              
-              <button 
-                onClick={() => { setSelectedReq(null); setActionComment(""); }} 
-                className="absolute top-8 right-8 text-gray-300 hover:text-black font-black text-xl transition-colors"
-              >
-                ✕
-              </button>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[3rem] max-w-5xl w-full shadow-2xl relative overflow-hidden">
+              <div className="p-10 md:p-16">
+                <div className="flex justify-between items-start mb-10">
+                  <div>
+                    <span className="bg-orange-50 text-[#A67C52] text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3 inline-block">
+                      Reference: {selectedReq._id.slice(-6)}
+                    </span>
+                    <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tighter">{selectedReq.vendorName}</h2>
+                  </div>
+                  <button onClick={() => { setSelectedReq(null); setActionComment(""); }} className="text-gray-300 hover:text-black transition-colors text-2xl">✕</button>
+                </div>
 
-              <div className="p-8 md:p-16">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-                  
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
                   <div className="space-y-8">
-                    <div>
-                      <span className="bg-orange-50 text-[#A67C52] text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3 inline-block">
-                        Maritime Requisition #{selectedReq._id.slice(-6)}
-                      </span>
-                      <h2 className="text-3xl font-black text-gray-900 leading-tight uppercase tracking-tighter">
-                        {selectedReq.vendorName}
-                      </h2>
-                    </div>
-
-                    <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
-                        Approval Instructions / Comments
-                      </p>
+                    <div className="bg-gray-50 p-8 rounded-[2.5rem] border border-gray-100">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Approval Instructions</p>
                       <textarea 
-                        className="w-full bg-white border border-gray-200 rounded-2xl p-5 text-sm font-medium focus:ring-4 focus:ring-orange-500/10 focus:border-[#A67C52] transition-all outline-none resize-none"
+                        className="w-full bg-white border border-gray-200 rounded-2xl p-6 text-sm font-medium focus:ring-4 focus:ring-orange-100 focus:border-[#A67C52] transition-all outline-none resize-none"
                         rows="5"
-                        placeholder={selectedReq.currentStage === 'FC' ? "Provide reason for FC Bypass..." : "Enter payment instructions for Accountant..."}
+                        placeholder="State payment terms or reason for FC bypass..."
                         value={actionComment}
                         onChange={(e) => setActionComment(e.target.value)}
                       />
@@ -222,15 +187,13 @@ const Dashboard = () => {
                     <div className="flex gap-4">
                       <button 
                         onClick={() => handleAction(selectedReq._id, 'Approved')}
-                        className={`flex-1 py-5 rounded-2xl text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-all hover:scale-[1.02] active:scale-95 ${
-                          selectedReq.currentStage === 'FC' ? 'bg-blue-600 shadow-blue-900/20' : 'bg-green-600 shadow-green-900/20'
-                        }`}
+                        className={`flex-1 py-5 rounded-2xl text-white font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl ${selectedReq.currentStage === 'FC' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
                       >
-                        {selectedReq.currentStage === 'FC' ? 'Execute Override' : 'Confirm Approval'}
+                        {selectedReq.currentStage === 'FC' ? 'Execute FC Override' : 'Confirm Approval'}
                       </button>
                       <button 
                         onClick={() => handleAction(selectedReq._id, 'Declined')}
-                        className="flex-1 py-5 rounded-2xl bg-red-50 text-red-600 font-black text-xs uppercase tracking-[0.2em] hover:bg-red-100 transition-all"
+                        className="flex-1 py-5 rounded-2xl bg-red-50 text-red-600 font-black text-[11px] uppercase tracking-[0.2em] hover:bg-red-100 transition-all"
                       >
                         Decline
                       </button>
@@ -238,26 +201,17 @@ const Dashboard = () => {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="bg-[#A67C52] p-8 rounded-[2.5rem] text-white flex items-center justify-between shadow-2xl shadow-orange-900/20">
-                      <div className="overflow-hidden">
-                        <p className="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">Total Valuation</p>
-                        <p className="text-3xl font-black tracking-tighter">
-                          {selectedReq.currency} {selectedReq.amount.toLocaleString()}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => window.open(selectedReq.attachmentUrl, '_blank')}
-                        className="bg-white/10 hover:bg-white/20 p-4 rounded-2xl transition-all border border-white/20"
-                      >
-                        📂
-                      </button>
+                    <div className="bg-[#A67C52] p-8 rounded-[2.5rem] text-white flex items-center justify-between shadow-xl">
+                        <div>
+                            <p className="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">Total Valuation</p>
+                            <p className="text-3xl font-black tracking-tighter">{selectedReq.currency} {selectedReq.amount.toLocaleString()}</p>
+                        </div>
+                        <button onClick={() => window.open(selectedReq.attachmentUrl, '_blank')} className="bg-white/10 p-4 rounded-2xl border border-white/20">📂</button>
                     </div>
-
-                    <div className="bg-gray-50 rounded-[2.5rem] p-8 border border-gray-100 h-[350px] overflow-y-auto">
+                    <div className="bg-gray-50 rounded-[2.5rem] p-8 border border-gray-100 max-h-[300px] overflow-y-auto">
                       <AuditTimeline history={selectedReq.approvalHistory} />
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
