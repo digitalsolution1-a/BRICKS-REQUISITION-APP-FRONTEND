@@ -16,10 +16,10 @@ function RequisitionForm() {
     requestOption: 'New',
     requestType: 'Internal Operation/Request',
     clientName: '',
-    otherClient: '',
+    otherClientDetails: '', 
     procurementType: 'Direct Procurement',
     vendorName: '',
-    otherVendor: '',
+    otherVendorName: '', 
     modeOfPayment: 'Cash',
     beneficiaryDetails: '',
     currency: 'NGN',
@@ -30,8 +30,9 @@ function RequisitionForm() {
     requestNarrative: '',
     department: user?.dept || '',
     hodForApproval: '',
-    requesterName: user?.name || '', // Auto-filled from login
-    requesterEmail: user?.email || '', // Auto-filled from login
+    requester: user?.id || user?._id || '', // Mechanical necessity for backend validation
+    requesterName: user?.name || '', 
+    requesterEmail: user?.email || '', 
   });
 
   const handleInputChange = (e) => {
@@ -63,7 +64,8 @@ function RequisitionForm() {
       alert("✅ REQUISITION SUBMITTED SUCCESSFULLY");
       window.location.reload(); 
     } catch (err) {
-      alert(err.response?.data?.error || "Submission Failed");
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || "Submission Failed";
+      alert(`❌ Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -76,8 +78,8 @@ function RequisitionForm() {
         {/* Header Section */}
         <div className="bg-[#A67C52] p-10 text-white flex justify-between items-center shadow-lg">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION FORM</h1>
-            <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-[0.2em] opacity-80">Requisition Portal</p>
+            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION</h1>
+            <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-[0.2em] opacity-80">Portal v2.0</p>
           </div>
           <div className="text-right">
              <p className="font-black text-xs uppercase tracking-tight">{user?.name}</p>
@@ -87,7 +89,7 @@ function RequisitionForm() {
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
           
-          {/* Section 1: Staff Info (Newly Added Requester Name) */}
+          {/* Section 1: Staff Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
@@ -138,13 +140,7 @@ function RequisitionForm() {
             </div>
           </div>
 
-          {/* Logistics & Financial Sections remain exactly as your previous code... */}
-          {/* (I've truncated the repetitive UI code here for brevity, keep your existing Sections 2, 3, 4, and Submit Button) */}
-          
-          {/* ... [Rest of your existing form sections] ... */}
-
           <div className="bg-orange-50/30 p-8 rounded-[2rem] border border-orange-100 space-y-8">
-             {/* [Keep your existing Request Type, Procurement Type, Client Assignment, Target Vendor grid] */}
              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Request Type</label>
@@ -170,7 +166,7 @@ function RequisitionForm() {
                   {CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 {formData.clientName === 'Others' && (
-                  <input name="otherClient" placeholder="Enter Client Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} />
+                  <input name="otherClientDetails" placeholder="Enter Client Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} />
                 )}
               </div>
               <div className="flex flex-col">
@@ -180,13 +176,13 @@ function RequisitionForm() {
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
                 {formData.vendorName === 'OTHERS' && (
-                  <input name="otherVendor" placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} />
+                  <input name="otherVendorName" placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Financials & Submission */}
+          {/* Financials */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Payment Mode</label>
@@ -200,9 +196,9 @@ function RequisitionForm() {
               <select name="currency" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                 <option value="NGN">Naira (₦)</option>
                 <option value="USD">Dollar ($)</option>
-                <option value="OTHER">Other</option>
+                <option value="Others">Others</option>
               </select>
-              {formData.currency === 'OTHER' && (
+              {formData.currency === 'Others' && (
                 <input name="otherCurrency" placeholder="Specify" className="mt-3 bg-gray-50 border-b p-3 text-sm outline-none" onChange={handleInputChange} />
               )}
             </div>
@@ -214,12 +210,19 @@ function RequisitionForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="flex flex-col">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (Value)</label>
-              <input type="number" name="amount" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-black text-2xl text-[#A67C52]" onChange={handleInputChange} />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Beneficiary Details</label>
+              <input 
+                type="text" 
+                name="beneficiaryDetails" 
+                required 
+                className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" 
+                placeholder="Account No / Recipient Name"
+                onChange={handleInputChange} 
+              />
             </div>
             <div className="flex flex-col">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (In Words)</label>
-              <input type="text" name="amountInWords" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm italic" placeholder="e.g. Five Thousand Naira Only" onChange={handleInputChange} />
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (Value)</label>
+              <input type="number" name="amount" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-black text-2xl text-[#A67C52]" onChange={handleInputChange} />
             </div>
           </div>
 
@@ -231,7 +234,7 @@ function RequisitionForm() {
 
             <div className="bg-[#A67C52]/5 border-2 border-dashed border-[#A67C52]/20 p-10 rounded-[2.5rem] text-center group hover:bg-[#A67C52]/10 transition-all">
               <label className="cursor-pointer">
-                <p className="text-[10px] font-black text-[#A67C52] uppercase mb-3 tracking-widest">Supporting Documentation (Invoice/Receipt)</p>
+                <p className="text-[10px] font-black text-[#A67C52] uppercase mb-3 tracking-widest">Supporting Documentation</p>
                 <input type="file" className="hidden" onChange={handleFileChange} required />
                 <div className="inline-block bg-white px-8 py-3 rounded-xl shadow-sm border border-orange-100 text-sm font-black text-[#A67C52] group-hover:shadow-md transition-all">
                   {file ? `📎 ${file.name}` : "Browse Files or Drag & Drop"}
