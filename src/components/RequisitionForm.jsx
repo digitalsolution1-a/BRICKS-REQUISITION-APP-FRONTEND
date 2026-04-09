@@ -79,8 +79,8 @@ function RequisitionForm() {
         {/* Header Section - Themed Brown */}
         <div className="bg-[#A67C52] p-10 text-white flex justify-between items-center shadow-lg">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">Fleet Gateway</h1>
-            <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-[0.2em] opacity-80">Requisition & Procurement Portal</p>
+            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION FORM</h1>
+            <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-[0.2em] opacity-80">Requisition Portal</p>
           </div>
           <div className="text-right">
              <p className="font-black text-xs uppercase tracking-tight">{user?.name}</p>
