@@ -13,6 +13,9 @@ function RequisitionForm() {
   const user = JSON.parse(localStorage.getItem('user'));
 
   const [formData, setFormData] = useState({
+    requester: user?._id || user?.id || '', // REQUIRED for database mapping
+    requesterName: user?.name || '', 
+    requesterEmail: user?.email || '', 
     requestOption: 'New',
     requestType: 'Internal Operation/Request',
     clientName: '',
@@ -21,7 +24,7 @@ function RequisitionForm() {
     vendorName: '',
     otherVendor: '',
     modeOfPayment: 'Cash',
-    beneficiaryDetails: '',
+    beneficiaryDetails: 'N/A', // Required by Model
     currency: 'NGN',
     otherCurrency: '',
     amount: '',
@@ -30,8 +33,6 @@ function RequisitionForm() {
     requestNarrative: '',
     department: user?.dept || '',
     hodForApproval: '',
-    requesterName: user?.name || '', // Auto-filled from login
-    requesterEmail: user?.email || '', // Auto-filled from login
   });
 
   const handleInputChange = (e) => {
@@ -48,7 +49,11 @@ function RequisitionForm() {
     setLoading(true);
 
     const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    // Logic to ensure "Other" text is sent if selected
+    Object.keys(formData).forEach(key => {
+        data.append(key, formData[key]);
+    });
+    
     if (file) data.append('document', file);
 
     const config = {
@@ -63,7 +68,8 @@ function RequisitionForm() {
       alert("✅ REQUISITION SUBMITTED SUCCESSFULLY");
       window.location.reload(); 
     } catch (err) {
-      alert(err.response?.data?.error || "Submission Failed");
+      const errorMsg = err.response?.data?.details || err.response?.data?.error || "Submission Failed";
+      alert(`❌ ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -87,7 +93,7 @@ function RequisitionForm() {
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
           
-          {/* Section 1: Staff Info (Newly Added Requester Name) */}
+          {/* Section 1: Staff Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
@@ -124,7 +130,7 @@ function RequisitionForm() {
             </div>
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Department</label>
-              <select name="department" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} defaultValue={formData.department}>
+              <select name="department" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} value={formData.department}>
                 <option value="">Select Dept</option>
                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
@@ -138,14 +144,8 @@ function RequisitionForm() {
             </div>
           </div>
 
-          {/* Logistics & Financial Sections remain exactly as your previous code... */}
-          {/* (I've truncated the repetitive UI code here for brevity, keep your existing Sections 2, 3, 4, and Submit Button) */}
-          
-          {/* ... [Rest of your existing form sections] ... */}
-
           <div className="bg-orange-50/30 p-8 rounded-[2rem] border border-orange-100 space-y-8">
-             {/* [Keep your existing Request Type, Procurement Type, Client Assignment, Target Vendor grid] */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Request Type</label>
                 <select name="requestType" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
@@ -170,7 +170,7 @@ function RequisitionForm() {
                   {CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 {formData.clientName === 'Others' && (
-                  <input name="otherClient" placeholder="Enter Client Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} />
+                  <input name="otherClient" placeholder="Enter Client Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
                 )}
               </div>
               <div className="flex flex-col">
@@ -180,13 +180,12 @@ function RequisitionForm() {
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
                 {formData.vendorName === 'OTHERS' && (
-                  <input name="otherVendor" placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} />
+                  <input name="otherVendor" placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Financials & Submission */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Payment Mode</label>
@@ -203,7 +202,7 @@ function RequisitionForm() {
                 <option value="OTHER">Other</option>
               </select>
               {formData.currency === 'OTHER' && (
-                <input name="otherCurrency" placeholder="Specify" className="mt-3 bg-gray-50 border-b p-3 text-sm outline-none" onChange={handleInputChange} />
+                <input name="otherCurrency" placeholder="Specify Currency" className="mt-3 bg-gray-50 border-b p-3 text-sm outline-none" onChange={handleInputChange} required />
               )}
             </div>
             <div className="flex flex-col">
@@ -224,6 +223,17 @@ function RequisitionForm() {
           </div>
 
           <div className="space-y-8">
+            <div className="flex flex-col">
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Beneficiary Details / Account info</label>
+              <input 
+                type="text" 
+                name="beneficiaryDetails" 
+                placeholder="Name, Bank, Account Number" 
+                className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" 
+                onChange={handleInputChange} 
+              />
+            </div>
+
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Justification Narrative</label>
               <textarea name="requestNarrative" required className="w-full border-2 border-gray-50 p-6 rounded-[2rem] outline-none focus:border-[#A67C52] bg-gray-50 font-bold text-sm leading-relaxed" rows="4" placeholder="Detail the technical or operational need for this request..." onChange={handleInputChange}></textarea>
@@ -246,7 +256,7 @@ function RequisitionForm() {
               loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black active:scale-95'
             }`}
           >
-            {loading ? 'Syncing...' : '🚀 Submit Requisition'}
+            {loading ? 'Syncing...' : 'Submit Requisition'}
           </button>
 
         </form>
