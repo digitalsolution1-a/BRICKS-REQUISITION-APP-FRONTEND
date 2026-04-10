@@ -5,13 +5,14 @@ import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
 import MDDashboard from './components/MDDashboard'; 
-import HODDashboard from './components/HODDashboard'; // Verified Import
+import HODDashboard from './components/HODDashboard'; 
 import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
 import Profile from './components/Profile';
 
-// --- Improved ProtectedRoute (Case-Insensitive) ---
+// --- ProtectedRoute: Standard Security ---
+// This blocks unauthorized users from entering dashboards
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -21,31 +22,17 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (allowedRoles.length > 0) {
     const userRole = user?.role?.toUpperCase();
     const normalizedRoles = allowedRoles.map(role => role.toUpperCase());
-    
     const hasAccess = user && normalizedRoles.includes(userRole);
-    if (!hasAccess) {
-      return <Navigate to="/staff-dashboard" replace />;
-    }
+    if (!hasAccess) return <Navigate to="/staff-dashboard" replace />;
   }
 
   return children;
 };
 
-// --- Redirect If Authenticated ---
+// --- FIXED PublicRoute: The "Front Door" ---
+// This no longer redirects. It just shows the Login page.
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-
-  if (token && user) {
-    const userRole = user.role.toUpperCase();
-    const managementRoles = ['HOD', 'FC', 'MD', 'ACCOUNTANT', 'ADMIN'];
-    
-    // If management, send to unified dashboard logic, else staff
-    return managementRoles.includes(userRole) 
-      ? <Navigate to="/dashboard" replace /> 
-      : <Navigate to="/staff-dashboard" replace />;
-  }
-  return children;
+  return children; 
 };
 
 function App() {
@@ -55,64 +42,25 @@ function App() {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      console.log("⚓ BRICKS PWA Install prompt stashed.");
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    if ("Notification" in window) {
-      if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-        Notification.requestPermission();
-      }
-    }
-
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setDeferredPrompt(null);
-  };
-
   return (
     <>
-      <Toaster 
-        position="top-right" 
-        reverseOrder={false} 
-        toastOptions={{
-          style: {
-            fontSize: '12px',
-            fontWeight: '900',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            borderRadius: '12px',
-            background: '#333',
-            color: '#fff',
-          },
-        }}
-      />
+      <Toaster position="top-right" />
 
       <BrowserRouter>
-        {deferredPrompt && (
-          <button 
-            onClick={handleInstallApp}
-            className="fixed bottom-8 right-8 z-[100] bg-[#003366] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce border-2 border-blue-400 font-black text-xs uppercase tracking-widest transition-transform active:scale-95"
-          >
-            <span className="text-xl">📲</span> Install BRICKS App
-          </button>
-        )}
-
         <Routes>
-          {/* Public Entry Point */}
+          {/* THE ENTRY POINT: Always shows Login first */}
           <Route path="/" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
           } />
 
-          {/* --- STAFF ROUTES --- */}
+          {/* --- PROTECTED STAFF ROUTES --- */}
           <Route path="/staff-dashboard" element={
             <ProtectedRoute>
               <StaffDashboard />
@@ -125,19 +73,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          <Route path="/edit-requisition/:id" element={
-            <ProtectedRoute>
-              <EditRequisition />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
-
-          {/* --- MANAGEMENT ROUTES --- */}
+          {/* --- PROTECTED MANAGEMENT ROUTES --- */}
           <Route 
             path="/dashboard" 
             element={
@@ -147,7 +83,6 @@ function App() {
             } 
           />
 
-          {/* Dedicated route for HOD Approval Hub */}
           <Route path="/approval-hub" element={
             <ProtectedRoute allowedRoles={['HOD']}>
               <HODDashboard />
@@ -160,7 +95,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Global Catch-all */}
+          {/* Global Catch-all: Redirects lost users to Login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -169,23 +104,15 @@ function App() {
 }
 
 /**
- * Dashboard logic: This is the traffic controller for management.
- * It detects the role and renders the correct dashboard component.
+ * Traffic controller for management users.
  */
 const DashboardLogic = () => {
-  const userString = localStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : {};
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const role = user?.role?.toUpperCase();
 
-  if (role === 'MD') {
-    return <MDDashboard />;
-  }
-
-  if (role === 'HOD') {
-    return <HODDashboard />;
-  }
+  if (role === 'MD') return <MDDashboard />;
+  if (role === 'HOD') return <HODDashboard />;
   
-  // Default for FC, Accountant, or Admin
   return <Dashboard />;
 };
 
