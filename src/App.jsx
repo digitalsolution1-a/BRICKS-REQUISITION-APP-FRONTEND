@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+
+// --- CORE COMPONENTS ---
 import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
-import MDDashboard from './components/MDDashboard'; 
-import HODDashboard from './components/HODDashboard'; 
 import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
 import Profile from './components/Profile';
 
+// --- ROLE-SPECIFIC DASHBOARDS ---
+import HODDashboard from './components/HODDashboard'; 
+import FCDashboard from './components/FCDashboard'; 
+import MDDashboard from './components/MDDashboard'; 
+import AccountantDashboard from './components/AccountantDashboard';
+
 // --- ProtectedRoute: Standard Security ---
-// This blocks unauthorized users from entering dashboards
+// Validates token existence and checks if user role is authorized for the route
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -29,8 +35,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   return children;
 };
 
-// --- FIXED PublicRoute: The "Front Door" ---
-// This no longer redirects. It just shows the Login page.
+// --- PublicRoute: Entry Logic ---
+// Simply renders children; prevents auto-redirection so Login is always accessible
 const PublicRoute = ({ children }) => {
   return children; 
 };
@@ -53,14 +59,14 @@ function App() {
 
       <BrowserRouter>
         <Routes>
-          {/* THE ENTRY POINT: Always shows Login first */}
+          {/* THE ENTRY POINT: Login Page */}
           <Route path="/" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
           } />
 
-          {/* --- PROTECTED STAFF ROUTES --- */}
+          {/* --- STAFF ROUTES --- */}
           <Route path="/staff-dashboard" element={
             <ProtectedRoute>
               <StaffDashboard />
@@ -73,29 +79,38 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* --- PROTECTED MANAGEMENT ROUTES --- */}
+          {/* --- MANAGEMENT & TREASURY ROUTES --- */}
+          {/* DashboardLogic acts as the dynamic router for all management roles */}
           <Route 
             path="/dashboard" 
             element={
-              <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'Accountant', 'Admin']}>
+              <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'ACCOUNTANT', 'ADMIN']}>
                 <DashboardLogic />
               </ProtectedRoute>
             } 
           />
 
+          {/* Specialized Approval Hub for HODs */}
           <Route path="/approval-hub" element={
             <ProtectedRoute allowedRoles={['HOD']}>
               <HODDashboard />
             </ProtectedRoute>
           } />
 
+          {/* Admin Tools */}
           <Route path="/admin/users" element={
             <ProtectedRoute allowedRoles={['Admin']}>
               <UserManagement />
             </ProtectedRoute>
           } />
 
-          {/* Global Catch-all: Redirects lost users to Login */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+
+          {/* Fallback Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -105,15 +120,25 @@ function App() {
 
 /**
  * Traffic controller for management users.
+ * Maps the user's role to their specific functional dashboard.
  */
 const DashboardLogic = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const role = user?.role?.toUpperCase();
 
-  if (role === 'MD') return <MDDashboard />;
-  if (role === 'HOD') return <HODDashboard />;
-  
-  return <Dashboard />;
+  switch (role) {
+    case 'MD':
+      return <MDDashboard />;
+    case 'HOD':
+      return <HODDashboard />;
+    case 'FC':
+      return <FCDashboard />;
+    case 'ACCOUNTANT':
+      return <AccountantDashboard />;
+    default:
+      // Fallback for Admins or unspecified management roles
+      return <Dashboard />;
+  }
 };
 
 export default App;
