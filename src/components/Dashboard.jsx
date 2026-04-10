@@ -175,7 +175,9 @@ const Dashboard = () => {
           <>
             {userRole === 'MD' ? (
               <>
+                {/* 1. MD Queue */}
                 {renderContent(mdPrimaryQueue, "Items Pending Your Approval", "bg-green-500", "Review & Sign")}
+                {/* 2. FC Oversight (Override View) */}
                 {fcPendingQueue.length > 0 && renderContent(fcPendingQueue, "FC Oversight Log", "bg-blue-600", "Review Override", true)}
               </>
             ) : (
