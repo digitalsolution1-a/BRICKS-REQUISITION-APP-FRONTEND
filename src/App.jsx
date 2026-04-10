@@ -5,6 +5,7 @@ import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
 import MDDashboard from './components/MDDashboard'; 
+import HODDashboard from './components/HODDashboard'; // Added Import
 import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
@@ -145,6 +146,13 @@ function App() {
             } 
           />
 
+          {/* Added direct route for the Approval Hub link in the header */}
+          <Route path="/approval-hub" element={
+            <ProtectedRoute allowedRoles={['HOD']}>
+              <HODDashboard />
+            </ProtectedRoute>
+          } />
+
           <Route path="/admin/users" element={
             <ProtectedRoute allowedRoles={['Admin']}>
               <UserManagement />
@@ -160,8 +168,7 @@ function App() {
 }
 
 /**
- * Separate component for Dashboard logic to handle role-based 
- * rendering cleanly without inline JSON.parse errors.
+ * Enhanced Dashboard logic to include HOD redirection
  */
 const DashboardLogic = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -170,7 +177,12 @@ const DashboardLogic = () => {
   if (role === 'MD') {
     return <MDDashboard />;
   }
+
+  if (role === 'HOD') {
+    return <HODDashboard />;
+  }
   
+  // Default fallback for FC, Accountant, or Admin
   return <Dashboard />;
 };
 
