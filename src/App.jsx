@@ -5,7 +5,7 @@ import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
 import MDDashboard from './components/MDDashboard'; 
-import HODDashboard from './components/HODDashboard'; // Added Import
+import HODDashboard from './components/HODDashboard'; // Verified Import
 import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
@@ -40,6 +40,7 @@ const PublicRoute = ({ children }) => {
     const userRole = user.role.toUpperCase();
     const managementRoles = ['HOD', 'FC', 'MD', 'ACCOUNTANT', 'ADMIN'];
     
+    // If management, send to unified dashboard logic, else staff
     return managementRoles.includes(userRole) 
       ? <Navigate to="/dashboard" replace /> 
       : <Navigate to="/staff-dashboard" replace />;
@@ -146,7 +147,7 @@ function App() {
             } 
           />
 
-          {/* Added direct route for the Approval Hub link in the header */}
+          {/* Dedicated route for HOD Approval Hub */}
           <Route path="/approval-hub" element={
             <ProtectedRoute allowedRoles={['HOD']}>
               <HODDashboard />
@@ -168,10 +169,12 @@ function App() {
 }
 
 /**
- * Enhanced Dashboard logic to include HOD redirection
+ * Dashboard logic: This is the traffic controller for management.
+ * It detects the role and renders the correct dashboard component.
  */
 const DashboardLogic = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userString = localStorage.getItem('user');
+  const user = userString ? JSON.parse(userString) : {};
   const role = user?.role?.toUpperCase();
 
   if (role === 'MD') {
@@ -182,7 +185,7 @@ const DashboardLogic = () => {
     return <HODDashboard />;
   }
   
-  // Default fallback for FC, Accountant, or Admin
+  // Default for FC, Accountant, or Admin
   return <Dashboard />;
 };
 
