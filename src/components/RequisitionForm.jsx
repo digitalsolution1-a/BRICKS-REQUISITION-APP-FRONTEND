@@ -13,7 +13,7 @@ function RequisitionForm() {
   const user = JSON.parse(localStorage.getItem('user'));
 
   const [formData, setFormData] = useState({
-    requester: user?._id || user?.id || '', // REQUIRED for database mapping
+    requester: user?._id || user?.id || '', 
     requesterName: user?.name || '', 
     requesterEmail: user?.email || '', 
     requestOption: 'New',
@@ -24,7 +24,7 @@ function RequisitionForm() {
     vendorName: '',
     otherVendor: '',
     modeOfPayment: 'Cash',
-    beneficiaryDetails: 'N/A', // Required by Model
+    beneficiaryDetails: '', 
     currency: 'NGN',
     otherCurrency: '',
     amount: '',
@@ -49,11 +49,30 @@ function RequisitionForm() {
     setLoading(true);
 
     const data = new FormData();
-    // Logic to ensure "Other" text is sent if selected
-    Object.keys(formData).forEach(key => {
-        data.append(key, formData[key]);
-    });
     
+    // Explicitly append all text fields FIRST to ensure Multer processes them before the file
+    data.append('requester', formData.requester);
+    data.append('requesterName', formData.requesterName);
+    data.append('requesterEmail', formData.requesterEmail || user?.email);
+    data.append('department', formData.department);
+    data.append('hodForApproval', formData.hodForApproval);
+    data.append('requestOption', formData.requestOption);
+    data.append('requestType', formData.requestType);
+    data.append('procurementType', formData.procurementType);
+    data.append('clientName', formData.clientName);
+    data.append('otherClient', formData.otherClient);
+    data.append('vendorName', formData.vendorName);
+    data.append('otherVendor', formData.otherVendor);
+    data.append('modeOfPayment', formData.modeOfPayment);
+    data.append('beneficiaryDetails', formData.beneficiaryDetails || 'N/A');
+    data.append('currency', formData.currency);
+    data.append('otherCurrency', formData.otherCurrency);
+    data.append('amount', formData.amount);
+    data.append('amountInWords', formData.amountInWords);
+    data.append('dueDate', formData.dueDate);
+    data.append('requestNarrative', formData.requestNarrative);
+
+    // Append file LAST
     if (file) data.append('document', file);
 
     const config = {
@@ -68,6 +87,7 @@ function RequisitionForm() {
       alert("✅ REQUISITION SUBMITTED SUCCESSFULLY");
       window.location.reload(); 
     } catch (err) {
+      console.error("Payload Error:", err.response?.data);
       const errorMsg = err.response?.data?.details || err.response?.data?.error || "Submission Failed";
       alert(`❌ ${errorMsg}`);
     } finally {
@@ -256,7 +276,7 @@ function RequisitionForm() {
               loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black active:scale-95'
             }`}
           >
-            {loading ? 'Syncing...' : 'Submit Requisition'}
+            {loading ? 'Syncing...' : '🚀 Submit Requisition'}
           </button>
 
         </form>
