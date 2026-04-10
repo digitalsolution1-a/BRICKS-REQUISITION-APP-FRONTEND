@@ -17,20 +17,36 @@ const FCDashboard = () => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const fetchData = async () => {
+    if (!token) {
+      navigate('/');
+      return;
+    }
+
     try {
       setLoading(true);
-      const [queueRes, historyRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
+      
+      // 1. Fetch Pending Queue (Critical)
+      try {
+        const queueRes = await axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
           headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API_BASE_URL}/requisitions/history/FC`, {
+        });
+        setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
+      } catch (qErr) {
+        console.error("Queue Sync Error:", qErr);
+        toast.error("Failed to sync current vetting queue");
+      }
+
+      // 2. Fetch History (Optional - won't crash the dashboard if endpoint is missing)
+      try {
+        const historyRes = await axios.get(`${API_BASE_URL}/requisitions/history/FC`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-      setRequisitions(queueRes.data);
-      setHistory(historyRes.data);
-    } catch (err) {
-      toast.error("Failed to sync vetting data");
+        });
+        setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      } catch (hErr) {
+        console.warn("History endpoint not reachable yet.");
+        setHistory([]); // Default to empty if backend isn't ready
+      }
+
     } finally {
       setLoading(false);
     }
@@ -38,13 +54,16 @@ const FCDashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, [token]);
+  }, [token, API_BASE_URL]);
 
-  const filterList = (list) => list.filter(req => 
-    req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    req.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filterList = (list) => {
+    const data = Array.isArray(list) ? list : [];
+    return data.filter(req => 
+      req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
 
   const exportToExcel = () => {
     const dataToExport = activeTab === 'queue' ? filterList(requisitions) : filterList(history);
@@ -74,25 +93,25 @@ const FCDashboard = () => {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
         actorRole: 'FC',
-        actorName: user.name,
+        actorName: user?.name || 'Financial Controller',
         comment: fcComment || (action === 'Approved' ? 'Vetted and cleared for MD' : 'Declined at FC stage')
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success(`Request ${action} successfully`, { id: loadingToast });
+      toast.success(`Request ${action === 'Approved' ? 'Forwarded' : 'Declined'} successfully`, { id: loadingToast });
       setSelectedReq(null);
       setFcComment('');
-      fetchData(); // Refresh both lists
+      fetchData(); 
     } catch (err) {
-      toast.error("Action failed", { id: loadingToast });
+      toast.error("Action failed. Check server connection.", { id: loadingToast });
     }
   };
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white">
       <div className="animate-spin h-10 w-10 border-4 border-[#A67C52] border-t-transparent rounded-full mb-4"></div>
-      <p className="text-[10px] font-black tracking-widest text-[#A67C52]">LOADING FINANCIAL DATA...</p>
+      <p className="text-[10px] font-black tracking-widest text-[#A67C52]">SYNCHRONIZING FINANCIAL PORTAL...</p>
     </div>
   );
 
@@ -104,10 +123,10 @@ const FCDashboard = () => {
           <div className="w-8 h-8 bg-[#A67C52] rounded-lg flex items-center justify-center font-black text-xs">B</div>
           <div>
             <h1 className="text-xs font-black tracking-widest text-[#A67C52]">Bricks Finance</h1>
-            <p className="text-[8px] font-bold text-gray-500 uppercase">Verification Hub</p>
+            <p className="text-[8px] font-bold text-gray-500 uppercase">FC DASHBOARD</p>
           </div>
         </div>
-        <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[10px] font-black border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all">LOGOUT</button>
+        <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[10px] font-black border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all shadow-lg">LOGOUT</button>
       </nav>
 
       <main className="max-w-7xl mx-auto p-6">
@@ -175,7 +194,6 @@ const FCDashboard = () => {
               </div>
             ))
           ) : (
-            /* HISTORY TABLE VIEW */
             <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm">
               <table className="w-full text-left">
                 <thead>
@@ -212,7 +230,7 @@ const FCDashboard = () => {
               <p className="text-gray-300 font-black tracking-[0.4em] text-xs">NO PENDING VETTING</p>
             </div>
           )}
-          {activeTab === 'history' && history.length === 0 && (
+          {activeTab === 'history' && filterList(history).length === 0 && (
             <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
               <p className="text-gray-300 font-black tracking-[0.4em] text-xs">NO VETTING HISTORY RECORDED</p>
             </div>
