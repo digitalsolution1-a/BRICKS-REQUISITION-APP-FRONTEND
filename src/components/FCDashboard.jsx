@@ -99,7 +99,7 @@ const FCDashboard = () => {
         {/* ACTION BAR */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Vetting Queue</h2>
+            <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">FC DASHBOARD</h2>
             <p className="text-[10px] font-bold text-[#A67C52] uppercase tracking-[0.3em] mt-1">Financial Controller Vetting</p>
           </div>
 
