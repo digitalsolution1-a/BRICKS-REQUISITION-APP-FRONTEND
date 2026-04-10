@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
-import MDDashboard from './components/MDDashboard'; // Imported the MD specific view
+import MDDashboard from './components/MDDashboard'; 
 import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
@@ -18,7 +18,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (!token) return <Navigate to="/" replace />;
 
   if (allowedRoles.length > 0) {
-    // Normalizing strings to uppercase ensures 'md' matches 'MD'
     const userRole = user?.role?.toUpperCase();
     const normalizedRoles = allowedRoles.map(role => role.toUpperCase());
     
@@ -141,14 +140,7 @@ function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'Accountant', 'Admin']}>
-                {/* LOGIC: If the logged-in user is the MD, show the MD Control Center.
-                   Otherwise, show the standard Management Dashboard.
-                */}
-                {JSON.parse(localStorage.getItem('user'))?.role?.toUpperCase() === 'MD' ? (
-                  <MDDashboard />
-                ) : (
-                  <Dashboard />
-                )}
+                <DashboardLogic />
               </ProtectedRoute>
             } 
           />
@@ -166,5 +158,20 @@ function App() {
     </>
   );
 }
+
+/**
+ * Separate component for Dashboard logic to handle role-based 
+ * rendering cleanly without inline JSON.parse errors.
+ */
+const DashboardLogic = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = user?.role?.toUpperCase();
+
+  if (role === 'MD') {
+    return <MDDashboard />;
+  }
+  
+  return <Dashboard />;
+};
 
 export default App;
