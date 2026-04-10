@@ -91,10 +91,10 @@ const MDDashboard = () => {
       <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header Section */}
         <div className="mb-8">
-          <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">MD Control Center</h1>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">MD DASHBORD</h1>
           <div className="flex items-center gap-2 mt-1">
             <div className="h-1.5 w-1.5 bg-green-500 rounded-full"></div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lagos Terminal Active</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pending Requisitions</p>
           </div>
         </div>
 
