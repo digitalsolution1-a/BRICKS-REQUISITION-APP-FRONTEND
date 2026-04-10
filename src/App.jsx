@@ -1,27 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast'; // Import the Toaster
+import { Toaster } from 'react-hot-toast';
 import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
+import MDDashboard from './components/MDDashboard'; // Imported the MD specific view
 import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
 import Profile from './components/Profile';
 
-// --- Improved ProtectedRoute ---
+// --- Improved ProtectedRoute (Case-Insensitive) ---
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
-  // 1. If not logged in, force to login page
   if (!token) return <Navigate to="/" replace />;
 
-  // 2. Role-based Authorization
   if (allowedRoles.length > 0) {
-    const hasAccess = user && allowedRoles.includes(user.role);
+    // Normalizing strings to uppercase ensures 'md' matches 'MD'
+    const userRole = user?.role?.toUpperCase();
+    const normalizedRoles = allowedRoles.map(role => role.toUpperCase());
+    
+    const hasAccess = user && normalizedRoles.includes(userRole);
     if (!hasAccess) {
-      // If they aren't authorized for a management page, send them to staff dashboard
       return <Navigate to="/staff-dashboard" replace />;
     }
   }
@@ -30,14 +32,15 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 };
 
 // --- Redirect If Authenticated ---
-// Prevents logged-in users from seeing the Login page
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
   if (token && user) {
-    const managementRoles = ['HOD', 'FC', 'MD', 'Accountant', 'Admin'];
-    return managementRoles.includes(user.role) 
+    const userRole = user.role.toUpperCase();
+    const managementRoles = ['HOD', 'FC', 'MD', 'ACCOUNTANT', 'ADMIN'];
+    
+    return managementRoles.includes(userRole) 
       ? <Navigate to="/dashboard" replace /> 
       : <Navigate to="/staff-dashboard" replace />;
   }
@@ -74,9 +77,6 @@ function App() {
 
   return (
     <>
-      {/* TOASTER: Placed at the top level to ensure 
-          alerts appear regardless of which route is active. 
-      */}
       <Toaster 
         position="top-right" 
         reverseOrder={false} 
@@ -94,7 +94,6 @@ function App() {
       />
 
       <BrowserRouter>
-        {/* PWA Floating Install Button */}
         {deferredPrompt && (
           <button 
             onClick={handleInstallApp}
@@ -105,7 +104,7 @@ function App() {
         )}
 
         <Routes>
-          {/* Public Entry Point (With Auth Check) */}
+          {/* Public Entry Point */}
           <Route path="/" element={
             <PublicRoute>
               <Login />
@@ -113,60 +112,52 @@ function App() {
           } />
 
           {/* --- STAFF ROUTES --- */}
-          <Route 
-            path="/staff-dashboard" 
-            element={
-              <ProtectedRoute>
-                <StaffDashboard />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/staff-dashboard" element={
+            <ProtectedRoute>
+              <StaffDashboard />
+            </ProtectedRoute>
+          } />
 
-          <Route 
-            path="/submit-requisition" 
-            element={
-              <ProtectedRoute>
-                <RequisitionForm />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/submit-requisition" element={
+            <ProtectedRoute>
+              <RequisitionForm />
+            </ProtectedRoute>
+          } />
 
-          <Route 
-            path="/edit-requisition/:id" 
-            element={
-              <ProtectedRoute>
-                <EditRequisition />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/edit-requisition/:id" element={
+            <ProtectedRoute>
+              <EditRequisition />
+            </ProtectedRoute>
+          } />
 
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
 
           {/* --- MANAGEMENT ROUTES --- */}
           <Route 
             path="/dashboard" 
             element={
               <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'Accountant', 'Admin']}>
-                <Dashboard />
+                {/* LOGIC: If the logged-in user is the MD, show the MD Control Center.
+                   Otherwise, show the standard Management Dashboard.
+                */}
+                {JSON.parse(localStorage.getItem('user'))?.role?.toUpperCase() === 'MD' ? (
+                  <MDDashboard />
+                ) : (
+                  <Dashboard />
+                )}
               </ProtectedRoute>
             } 
           />
 
-          <Route 
-            path="/admin/users" 
-            element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <UserManagement />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/admin/users" element={
+            <ProtectedRoute allowedRoles={['Admin']}>
+              <UserManagement />
+            </ProtectedRoute>
+          } />
 
           {/* Global Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
