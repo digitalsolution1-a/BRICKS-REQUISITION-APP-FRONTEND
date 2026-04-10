@@ -88,8 +88,8 @@ const AccountantDashboard = () => {
         {/* HEADER & TOOLS */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Disbursement Hub</h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Final Approval & Payment Stage</p>
+            <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">ACCOUNT DASHBOARD</h1>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Requisition Upload</p>
           </div>
           
           <div className="flex gap-2 w-full md:w-auto">
