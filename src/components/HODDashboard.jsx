@@ -92,7 +92,7 @@ const HODDashboard = () => {
       <main className="max-w-7xl mx-auto p-6">
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none">Review <span className="text-[#A67C52]">Queue</span></h2>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none">HOD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <p className="text-[10px] font-bold text-gray-400 tracking-[0.3em] mt-2 italic">{user.department} Department</p>
           </div>
           <input 
