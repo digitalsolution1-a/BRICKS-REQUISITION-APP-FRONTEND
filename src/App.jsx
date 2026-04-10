@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast'; // Import the Toaster
 import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
 import Dashboard from './components/Dashboard'; 
@@ -20,7 +21,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (allowedRoles.length > 0) {
     const hasAccess = user && allowedRoles.includes(user.role);
     if (!hasAccess) {
-      // If they don't have management roles, send them to staff dashboard
+      // If they aren't authorized for a management page, send them to staff dashboard
       return <Navigate to="/staff-dashboard" replace />;
     }
   }
@@ -72,85 +73,106 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      {/* PWA Floating Install Button */}
-      {deferredPrompt && (
-        <button 
-          onClick={handleInstallApp}
-          className="fixed bottom-8 right-8 z-[100] bg-[#003366] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce border-2 border-blue-400 font-black text-xs uppercase tracking-widest transition-transform active:scale-95"
-        >
-          <span className="text-xl">📲</span> Install BRICKS App
-        </button>
-      )}
+    <>
+      {/* TOASTER: Placed at the top level to ensure 
+          alerts appear regardless of which route is active. 
+      */}
+      <Toaster 
+        position="top-right" 
+        reverseOrder={false} 
+        toastOptions={{
+          style: {
+            fontSize: '12px',
+            fontWeight: '900',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            borderRadius: '12px',
+            background: '#333',
+            color: '#fff',
+          },
+        }}
+      />
 
-      <Routes>
-        {/* Public Entry Point (With Auth Check) */}
-        <Route path="/" element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        } />
+      <BrowserRouter>
+        {/* PWA Floating Install Button */}
+        {deferredPrompt && (
+          <button 
+            onClick={handleInstallApp}
+            className="fixed bottom-8 right-8 z-[100] bg-[#003366] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce border-2 border-blue-400 font-black text-xs uppercase tracking-widest transition-transform active:scale-95"
+          >
+            <span className="text-xl">📲</span> Install BRICKS App
+          </button>
+        )}
 
-        {/* --- STAFF ROUTES --- */}
-        <Route 
-          path="/staff-dashboard" 
-          element={
-            <ProtectedRoute>
-              <StaffDashboard />
-            </ProtectedRoute>
-          } 
-        />
+        <Routes>
+          {/* Public Entry Point (With Auth Check) */}
+          <Route path="/" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
 
-        <Route 
-          path="/submit-requisition" 
-          element={
-            <ProtectedRoute>
-              <RequisitionForm />
-            </ProtectedRoute>
-          } 
-        />
+          {/* --- STAFF ROUTES --- */}
+          <Route 
+            path="/staff-dashboard" 
+            element={
+              <ProtectedRoute>
+                <StaffDashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-        <Route 
-          path="/edit-requisition/:id" 
-          element={
-            <ProtectedRoute>
-              <EditRequisition />
-            </ProtectedRoute>
-          } 
-        />
+          <Route 
+            path="/submit-requisition" 
+            element={
+              <ProtectedRoute>
+                <RequisitionForm />
+              </ProtectedRoute>
+            } 
+          />
 
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } 
-        />
+          <Route 
+            path="/edit-requisition/:id" 
+            element={
+              <ProtectedRoute>
+                <EditRequisition />
+              </ProtectedRoute>
+            } 
+          />
 
-        {/* --- MANAGEMENT ROUTES --- */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'Accountant', 'Admin']}>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } 
+          />
 
-        <Route 
-          path="/admin/users" 
-          element={
-            <ProtectedRoute allowedRoles={['Admin']}>
-              <UserManagement />
-            </ProtectedRoute>
-          } 
-        />
+          {/* --- MANAGEMENT ROUTES --- */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'Accountant', 'Admin']}>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-        {/* Global Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          <Route 
+            path="/admin/users" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <UserManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Global Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </>
   );
 }
 
