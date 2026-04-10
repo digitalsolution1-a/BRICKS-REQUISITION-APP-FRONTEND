@@ -132,7 +132,7 @@ const MDDashboard = () => {
         {/* HEADER & FILTERS */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4 mt-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic">Executive <span className="text-[#A67C52]">Control</span></h2>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic">MD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-4">
               <button onClick={() => setActiveTab('pending')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'pending' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>CURRENT QUEUE</button>
               <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>APPROVAL HISTORY</button>
