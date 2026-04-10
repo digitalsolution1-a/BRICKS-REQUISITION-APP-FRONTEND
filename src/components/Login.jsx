@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; // Import toast for professional notifications
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,7 +14,11 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    // Create a loading toast and store its ID to update it later
+    const loadingToast = toast.loading('Verifying credentials...');
     setLoading(true);
+
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
       
@@ -24,9 +29,12 @@ const Login = () => {
       const userRole = res.data.user.role;
       const managementRoles = ['HOD', 'FC', 'MD', 'Accountant', 'Admin'];
 
+      // Success Notification
+      toast.success(`Welcome back, ${res.data.user.name || 'User'}!`, {
+        id: loadingToast, // This replaces the loading toast
+      });
+
       // REDIRECTION LOGIC:
-      // If user is a manager/approver, send to Management Dashboard
-      // Otherwise, send to the new Staff Dashboard hub
       if (managementRoles.includes(userRole)) {
         navigate('/dashboard');
       } else {
@@ -34,7 +42,12 @@ const Login = () => {
       }
 
     } catch (err) {
-      alert(err.response?.data?.msg || "Login Failed: Please check your credentials.");
+      const errorMsg = err.response?.data?.msg || "Login Failed: Please check your credentials.";
+      
+      // Error Notification
+      toast.error(errorMsg, {
+        id: loadingToast, // This replaces the loading toast
+      });
     } finally {
       setLoading(false);
     }
@@ -87,7 +100,7 @@ const Login = () => {
             disabled={loading}
             className="w-full bg-[#A67C52] hover:bg-black text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
           >
-            {loading ? 'Verifying Credentials...' : 'Sign In'}
+            {loading ? 'Authenticating...' : 'Sign In'}
           </button>
           
           <div className="pt-8 border-t border-gray-50 flex flex-col items-center gap-2">
