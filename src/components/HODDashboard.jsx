@@ -42,7 +42,7 @@ const HODDashboard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#f8f9fa]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-[#A67C52] mb-4"></div>
-        <p className="font-black text-[#A67C52] tracking-widest uppercase animate-pulse">Syncing Approval Hub...</p>
+        <p className="font-black text-[#A67C52] tracking-widest uppercase animate-pulse">Syncing HOD Dashboard...</p>
       </div>
     );
   }
@@ -61,7 +61,7 @@ const HODDashboard = () => {
       <div className="max-w-6xl mx-auto">
         <header className="mb-10 flex justify-between items-end">
           <div>
-            <h1 className="text-4xl font-black tracking-tighter text-gray-900 leading-none">Approval Hub</h1>
+            <h1 className="text-4xl font-black tracking-tighter text-gray-900 leading-none">HOD Dashboard</h1>
             <p className="text-[#A67C52] font-black text-[10px] tracking-[0.3em] mt-2">HOD Internal Review</p>
           </div>
           <div className="text-right">
