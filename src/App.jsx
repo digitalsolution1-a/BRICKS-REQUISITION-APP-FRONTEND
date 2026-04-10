@@ -18,7 +18,6 @@ import MDDashboard from './components/MDDashboard';
 import AccountantDashboard from './components/AccountantDashboard';
 
 // --- ProtectedRoute: Standard Security ---
-// Validates token existence and checks if user role is authorized for the route
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -26,7 +25,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (!token) return <Navigate to="/" replace />;
 
   if (allowedRoles.length > 0) {
-    const userRole = user?.role?.toUpperCase();
+    const userRole = user?.role?.trim().toUpperCase();
     const normalizedRoles = allowedRoles.map(role => role.toUpperCase());
     const hasAccess = user && normalizedRoles.includes(userRole);
     if (!hasAccess) return <Navigate to="/staff-dashboard" replace />;
@@ -36,7 +35,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 };
 
 // --- PublicRoute: Entry Logic ---
-// Simply renders children; prevents auto-redirection so Login is always accessible
 const PublicRoute = ({ children }) => {
   return children; 
 };
@@ -59,14 +57,14 @@ function App() {
 
       <BrowserRouter>
         <Routes>
-          {/* THE ENTRY POINT: Login Page */}
+          {/* THE ENTRY POINT */}
           <Route path="/" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
           } />
 
-          {/* --- STAFF ROUTES --- */}
+          {/* STAFF ROUTES */}
           <Route path="/staff-dashboard" element={
             <ProtectedRoute>
               <StaffDashboard />
@@ -79,25 +77,22 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* --- MANAGEMENT & TREASURY ROUTES --- */}
-          {/* DashboardLogic acts as the dynamic router for all management roles */}
+          {/* MANAGEMENT & TREASURY ROUTES */}
           <Route 
             path="/dashboard" 
             element={
-              <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'ACCOUNTANT', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['HOD', 'FC', 'FINANCE CONTROLLER', 'MD', 'ACCOUNTANT', 'ADMIN']}>
                 <DashboardLogic />
               </ProtectedRoute>
             } 
           />
 
-          {/* Specialized Approval Hub for HODs */}
           <Route path="/approval-hub" element={
             <ProtectedRoute allowedRoles={['HOD']}>
               <HODDashboard />
             </ProtectedRoute>
           } />
 
-          {/* Admin Tools */}
           <Route path="/admin/users" element={
             <ProtectedRoute allowedRoles={['Admin']}>
               <UserManagement />
@@ -120,23 +115,44 @@ function App() {
 
 /**
  * Traffic controller for management users.
- * Maps the user's role to their specific functional dashboard.
+ * Optimized with multi-variant matching to solve FC routing issues.
  */
 const DashboardLogic = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const role = user?.role?.toUpperCase();
+  
+  // Clean the string: remove whitespace and make uppercase
+  const role = user?.role?.trim().toUpperCase();
+
+  // DEBUG: Check your browser console (F12) to see exactly what role is being detected
+  console.log("Bricks Portal - Detected Role:", role);
 
   switch (role) {
     case 'MD':
       return <MDDashboard />;
+    
     case 'HOD':
       return <HODDashboard />;
+    
+    // Multi-variant match for FC
     case 'FC':
+    case 'FINANCE CONTROLLER':
+    case 'FINANCIAL CONTROLLER':
+    case 'FINANCE_CONTROLLER':
       return <FCDashboard />;
+    
+    // Multi-variant match for Accountant
     case 'ACCOUNTANT':
+    case 'ACCOUNTS':
+    case 'TREASURY':
       return <AccountantDashboard />;
+    
+    case 'ADMIN':
+      return <UserManagement />;
+
     default:
-      // Fallback for Admins or unspecified management roles
+      /** * If it hits this fallback, it means the role string in the DB 
+       * doesn't match any cases above. 
+       */
       return <Dashboard />;
   }
 };
