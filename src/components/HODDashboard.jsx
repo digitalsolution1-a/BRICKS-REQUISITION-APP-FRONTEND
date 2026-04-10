@@ -5,8 +5,10 @@ import { useNavigate } from 'react-router-dom';
 
 const HODDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('queue'); // 'queue' or 'history'
   const [selectedReq, setSelectedReq] = useState(null); 
   const [hodComment, setHodComment] = useState('');
 
@@ -15,37 +17,73 @@ const HODDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  const fetchRequisitions = async () => {
+  const syncPortal = async () => {
     try {
       setLoading(true);
       if (!user.email) throw new Error("User session expired.");
 
-      const res = await axios.get(`${API_BASE_URL}/requisitions/pending/HOD?email=${user.email}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setRequisitions(res.data);
+      // 1. Sync Pending Queue
+      try {
+        const queueRes = await axios.get(`${API_BASE_URL}/requisitions/pending/HOD?email=${user.email}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setRequisitions(queueRes.data);
+      } catch (err) {
+        console.error("Queue error:", err);
+      }
+
+      // 2. Sync History
+      try {
+        const historyRes = await axios.get(`${API_BASE_URL}/requisitions/history/HOD?email=${user.email}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setHistory(historyRes.data);
+      } catch (err) {
+        console.warn("History data currently unavailable");
+      }
+
     } catch (err) {
-      toast.error("Failed to sync queue");
+      toast.error("Global portal sync failed");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRequisitions();
+    syncPortal();
   }, [user.email, API_BASE_URL, token]);
 
-  const filteredRequests = requisitions.filter(req => 
-    req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filterList = (list) => {
+    const data = Array.isArray(list) ? list : [];
+    return data.filter(req => 
+      req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const exportData = () => {
+    const targetData = activeTab === 'queue' ? filterList(requisitions) : filterList(history);
+    if (targetData.length === 0) return toast.error("Nothing to export");
+
+    const headers = "ID,Date,Staff,Amount,Currency,Vendor,Status,HOD_Note\n";
+    const csvContent = targetData.map(r => 
+      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.amount},${r.currency},${r.vendorName || 'N/A'},${r.status},"${r.hodComment || ''}"`
+    ).join("\n");
+
+    const blob = new Blob([headers + csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `HOD_${activeTab}_report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
 
   const handleAction = async (id, action) => {
     if (action === 'Declined' && !hodComment) {
       return toast.error("A reason is required to decline.");
     }
 
-    const loadingToast = toast.loading(`${action}ing...`);
+    const loadingToast = toast.loading(`${action}ing request...`);
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
@@ -57,11 +95,11 @@ const HODDashboard = () => {
       });
 
       toast.success(`Successfully ${action}`, { id: loadingToast });
-      setRequisitions(prev => prev.filter(r => r._id !== id));
       setSelectedReq(null);
       setHodComment('');
+      syncPortal(); // Refresh both lists
     } catch (err) {
-      toast.error("Update failed", { id: loadingToast });
+      toast.error("Action could not be processed", { id: loadingToast });
     }
   };
 
@@ -85,108 +123,169 @@ const HODDashboard = () => {
         </div>
         <div className="flex gap-2">
           <button onClick={() => navigate('/profile')} className="text-[10px] font-black border border-white/10 px-4 py-2 rounded-xl hover:bg-white/5 transition-all">PROFILE</button>
-          <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[10px] font-black bg-[#A67C52] px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all">LOGOUT</button>
+          <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[10px] font-black bg-[#A67C52] px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all shadow-lg">LOGOUT</button>
         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto p-6">
+        {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none">HOD <span className="text-[#A67C52]">DASHBOARD</span></h2>
-            <p className="text-[10px] font-bold text-gray-400 tracking-[0.3em] mt-2 italic">{user.department} Department</p>
-          </div>
-          <input 
-            type="text" 
-            placeholder="SEARCH STAFF OR VENDOR..." 
-            className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm"
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        {/* LISTING */}
-        <div className="grid gap-4">
-          {filteredRequests.map(req => (
-            <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-center gap-6 flex-1">
-                <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
-                  <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
-                  <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
-                  <p className="text-[10px] font-bold text-gray-400">{req.vendorName || 'General Requisition'}</p>
-                </div>
-              </div>
+            <div className="flex gap-6 mt-6">
               <button 
-                onClick={() => setSelectedReq(req)}
-                className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all"
+                onClick={() => setActiveTab('queue')}
+                className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
               >
-                Process
+                PENDING APPROVAL ({requisitions.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('history')}
+                className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
+              >
+                ACTION HISTORY ({history.length})
               </button>
             </div>
-          ))}
-          {filteredRequests.length === 0 && (
+          </div>
+          
+          <div className="flex gap-3 w-full md:w-auto">
+            <input 
+              type="text" 
+              placeholder="SEARCH STAFF OR VENDOR..." 
+              className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm"
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button 
+              onClick={exportData}
+              className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg"
+            >
+              EXPORT CSV
+            </button>
+          </div>
+        </div>
+
+        {/* DATA DISPLAY */}
+        <div className="grid gap-4">
+          {activeTab === 'queue' ? (
+            filterList(requisitions).map(req => (
+              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
+                    <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
+                    <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
+                    <p className="text-[10px] font-bold text-gray-400">{req.vendorName || 'General Requisition'}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedReq(req)}
+                  className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all"
+                >
+                  PROCESS
+                </button>
+              </div>
+            ))
+          ) : (
+            /* HISTORY VIEW */
+            <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">DATE</th>
+                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">STAFF</th>
+                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">VALUE</th>
+                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest text-right">OUTCOME</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filterList(history).map(req => (
+                    <tr key={req._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="p-6 text-[10px] font-bold text-gray-500">{new Date(req.updatedAt).toLocaleDateString()}</td>
+                      <td className="p-6">
+                        <p className="text-[10px] font-black text-gray-900 leading-none mb-1">{req.requesterName}</p>
+                        <p className="text-[8px] font-bold text-gray-400 uppercase">{req.vendorName || 'General'}</p>
+                      </td>
+                      <td className="p-6 text-[11px] font-black text-[#A67C52]">{req.currency} {req.amount?.toLocaleString()}</td>
+                      <td className="p-6 text-right">
+                        <span className={`text-[8px] font-black px-3 py-1 rounded-full ${req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                          {req.status === 'Approved' ? 'PASSED TO FC' : req.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'queue' && filterList(requisitions).length === 0 && (
             <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
               <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase">No pending requests</p>
+            </div>
+          )}
+          {activeTab === 'history' && filterList(history).length === 0 && (
+            <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
+              <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase">History is empty</p>
             </div>
           )}
         </div>
       </main>
 
-      {/* --- PROCESS MODAL WITH DOCUMENT VIEWING --- */}
+      {/* --- PROCESS MODAL --- */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden">
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 md:p-12 overflow-y-auto max-h-[85vh]">
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter italic uppercase underline decoration-[#A67C52] decoration-4 underline-offset-4">Review Details</h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-2">ID: #{selectedReq._id.slice(-6)}</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-2 tracking-widest">TRANSACTION ID: #{selectedReq._id.slice(-6)}</p>
                 </div>
-                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
+                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
               <div className="space-y-6 mb-10">
                 <div className="flex justify-between border-b border-gray-50 pb-4">
-                  <span className="text-[10px] font-black text-gray-400">STAFF</span>
+                  <span className="text-[10px] font-black text-gray-400">REQUESTING STAFF</span>
                   <span className="text-xs font-black text-gray-800">{selectedReq.requesterName}</span>
                 </div>
                 <div className="flex justify-between border-b border-gray-50 pb-4">
-                  <span className="text-[10px] font-black text-gray-400">AMOUNT</span>
+                  <span className="text-[10px] font-black text-gray-400">FINANCIAL VALUE</span>
                   <span className="text-lg font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</span>
                 </div>
-                <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100">
-                  <p className="text-[10px] font-black text-gray-300 mb-2 uppercase italic tracking-widest">Narrative</p>
+                <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 shadow-inner">
+                  <p className="text-[10px] font-black text-gray-300 mb-2 uppercase italic tracking-widest">Purpose of Requisition</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
                 
-                {/* ATTACHMENT SECTION - VISIBLE BEFORE APPROVAL */}
                 {selectedReq.attachment ? (
-                  <div className="bg-gray-900 p-6 rounded-3xl">
-                    <p className="text-[9px] font-black text-[#A67C52] mb-3 uppercase tracking-widest">Document Verification Required</p>
+                  <div className="bg-gray-900 p-6 rounded-3xl shadow-lg">
+                    <p className="text-[9px] font-black text-[#A67C52] mb-3 uppercase tracking-widest">Evidence / Supporting Doc</p>
                     <a 
                       href={selectedReq.attachment} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="flex items-center justify-center gap-3 bg-white text-black w-full py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] hover:text-white transition-all shadow-xl"
+                      className="flex items-center justify-center gap-3 bg-white text-black w-full py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] hover:text-white transition-all shadow-md"
                     >
-                      📎 OPEN ATTACHED DOCUMENT
+                      📎 VIEW ATTACHMENT
                     </a>
                   </div>
                 ) : (
                   <div className="text-center py-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
-                     <p className="text-[10px] font-black text-gray-300 uppercase">No Document Attached</p>
+                     <p className="text-[10px] font-black text-gray-300 uppercase">Document missing from request</p>
                   </div>
                 )}
               </div>
 
               <div className="border-t border-gray-100 pt-8">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">HOD Comments/Instructions</p>
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">HOD Approval Remarks</p>
                 <textarea 
                   value={hodComment}
                   onChange={(e) => setHodComment(e.target.value)}
-                  placeholder="Review findings or reason for decline..."
-                  className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2rem] p-5 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
+                  placeholder="Notes for Finance / Reasons for decline..."
+                  className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2rem] p-5 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6 shadow-sm"
                 />
                 
                 <div className="flex flex-col md:flex-row gap-4">
@@ -194,7 +293,7 @@ const HODDashboard = () => {
                     onClick={() => handleAction(selectedReq._id, 'Approved')}
                     className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] transition-all"
                   >
-                    APPROVE REQUEST
+                    APPROVE TO FINANCE
                   </button>
                   <button 
                     onClick={() => handleAction(selectedReq._id, 'Declined')}
