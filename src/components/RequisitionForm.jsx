@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DEPARTMENTS, HOD_EMAILS } from '../utils/constants';
 
@@ -31,9 +31,20 @@ function RequisitionForm() {
     amountInWords: '',
     dueDate: '',
     requestNarrative: '',
-    department: user?.dept || '',
-    hodForApproval: '',
+    department: user?.department || user?.dept || '',
+    hodForApproval: '', // This will map to hodEmail in backend
   });
+
+  // Sync user info if it loads late
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        requesterEmail: user.email,
+        department: user.department || user.dept || prev.department
+      }));
+    }
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -50,10 +61,15 @@ function RequisitionForm() {
 
     const data = new FormData();
     
-    // Explicitly append all text fields FIRST to ensure Multer processes them before the file
+    // --- ROUTING LOGIC ---
+    // We set currentStage to HOD and pass the hodEmail so the HOD can see it.
+    data.append('currentStage', 'HOD');
+    data.append('hodEmail', formData.hodForApproval); 
+    
+    // --- FORM DATA ---
     data.append('requester', formData.requester);
     data.append('requesterName', formData.requesterName);
-    data.append('requesterEmail', formData.requesterEmail || user?.email);
+    data.append('requesterEmail', formData.requesterEmail);
     data.append('department', formData.department);
     data.append('hodForApproval', formData.hodForApproval);
     data.append('requestOption', formData.requestOption);
@@ -72,7 +88,6 @@ function RequisitionForm() {
     data.append('dueDate', formData.dueDate);
     data.append('requestNarrative', formData.requestNarrative);
 
-    // Append file LAST
     if (file) data.append('document', file);
 
     const config = {
@@ -84,8 +99,8 @@ function RequisitionForm() {
 
     try {
       await axios.post(`${API_BASE_URL}/requisitions/submit`, data, config);
-      alert("✅ REQUISITION SUBMITTED SUCCESSFULLY");
-      window.location.reload(); 
+      alert("✅ REQUISITION SUBMITTED TO HOD FOR APPROVAL");
+      window.location.href = '/staff-dashboard'; 
     } catch (err) {
       console.error("Payload Error:", err.response?.data);
       const errorMsg = err.response?.data?.details || err.response?.data?.error || "Submission Failed";
@@ -102,7 +117,7 @@ function RequisitionForm() {
         {/* Header Section */}
         <div className="bg-[#A67C52] p-10 text-white flex justify-between items-center shadow-lg">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION FORM</h1>
+            <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION</h1>
             <p className="text-orange-100 text-[10px] font-bold mt-2 uppercase tracking-[0.2em] opacity-80">Requisition Portal</p>
           </div>
           <div className="text-right">
@@ -143,7 +158,7 @@ function RequisitionForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Request Option</label>
-              <select name="requestOption" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+              <select name="requestOption" value={formData.requestOption} className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                 <option value="New">New Requisition</option>
                 <option value="Paid">Previously Paid</option>
               </select>
@@ -156,9 +171,9 @@ function RequisitionForm() {
               </select>
             </div>
             <div className="flex flex-col">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Approving HOD</label>
-              <select name="hodForApproval" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                <option value="">Select HOD</option>
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Target HOD (Approver)</label>
+              <select name="hodForApproval" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all border-l-4 border-l-[#A67C52]" onChange={handleInputChange}>
+                <option value="">Select HOD Email</option>
                 {HOD_EMAILS.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
@@ -276,7 +291,7 @@ function RequisitionForm() {
               loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black active:scale-95'
             }`}
           >
-            {loading ? 'Syncing...' : '🚀 Submit Requisition'}
+            {loading ? 'Syncing...' : 'Submit Requisition'}
           </button>
 
         </form>
