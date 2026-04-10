@@ -50,7 +50,7 @@ const Login = () => {
             Bricks Mursten Mattoni
           </h1>
           <p className="text-orange-50 text-[9px] font-black uppercase mt-2 tracking-[0.4em] opacity-80">
-            Digital Solutions Portal
+            Requisition Portal
           </p>
         </div>
         
@@ -63,7 +63,7 @@ const Login = () => {
               type="email" 
               required 
               autoComplete="email"
-              placeholder="e.example@bricksmursten.com"
+              placeholder="e.example@brickslimited.com"
               className="w-full bg-gray-50 border-b-2 border-gray-100 focus:border-[#A67C52] outline-none p-3 transition-all font-bold text-gray-700 text-sm"
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -92,7 +92,7 @@ const Login = () => {
           
           <div className="pt-8 border-t border-gray-50 flex flex-col items-center gap-2">
             <p className="text-gray-300 text-[8px] font-black uppercase tracking-widest">
-              Internal Access Only
+              BRICKS DIGITAL SOLUTIONS
             </p>
             <div className="h-1 w-8 bg-gray-100 rounded-full"></div>
           </div>
