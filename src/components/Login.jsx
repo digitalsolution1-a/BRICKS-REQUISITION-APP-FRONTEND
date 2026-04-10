@@ -78,7 +78,7 @@ const Login = () => {
           
           <div className="pt-4 border-t border-gray-50">
             <p className="text-center text-gray-400 text-[10px] font-black uppercase tracking-widest">
-              Developed by Bricks Digital Solutions
+              Bricks Digital Solutions
             </p>
           </div>
         </form>
