@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; // Professional notifications
 
 const Dashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -9,7 +10,6 @@ const Dashboard = () => {
   const [actionComment, setActionComment] = useState("");
   const navigate = useNavigate();
 
-  // Ensuring we use the correct environment variable for your deployment
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   
   const user = JSON.parse(localStorage.getItem('user')) || { name: 'User', role: 'Staff' };
@@ -23,21 +23,24 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
-      
-      // We pass the role and email to the backend to leverage our case-insensitive filtering
       const res = await axios.get(`${API_BASE_URL}/requisitions/pending/${user.role}?email=${user.email}`, config);
       setRequisitions(res.data);
     } catch (err) {
       console.error("Fetch Error:", err);
+      toast.error("Failed to sync with Bricks Cloud.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleAction = async (id, action) => {
-    if (!actionComment.trim()) return alert("An audit comment is required for transparency.");
+    if (!actionComment.trim()) {
+      return toast.error("An audit comment is required for transparency.");
+    }
     
-    // Logic: MD can override FC, or Admin has general override powers
+    // UI/UX: Create a loading state for the action
+    const actionToast = toast.loading(`Recording ${action.toLowerCase()} in audit trail...`);
+    
     const isOverride = (userRole === 'MD' && selectedReq?.currentStage === 'FC') || userRole === 'ADMIN';
     
     try {
@@ -50,16 +53,18 @@ const Dashboard = () => {
         isOverride: isOverride 
       }, config);
 
-      alert(`Requisition successfully ${action.toLowerCase()}.`);
+      // Final Success Toast
+      toast.success(`Requisition successfully ${action.toLowerCase()}.`, { id: actionToast });
+      
       setSelectedReq(null);
       setActionComment("");
       fetchPendingRequests();
     } catch (err) {
-      alert("Error: " + (err.response?.data?.error || "Action failed"));
+      const errorMsg = err.response?.data?.error || "Action failed";
+      toast.error(`Error: ${errorMsg}`, { id: actionToast });
     }
   };
 
-  // Splitting queues for Executive View (MD)
   const mdPrimaryQueue = requisitions.filter(r => r.currentStage === 'MD');
   const fcPendingQueue = requisitions.filter(r => r.currentStage === 'FC');
 
@@ -196,7 +201,7 @@ const Dashboard = () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[999] flex items-end lg:items-center justify-center p-0 lg:p-4">
           <div className="bg-white w-full max-w-2xl rounded-t-[2rem] lg:rounded-[2.5rem] p-8 lg:p-12 relative animate-slide-up max-h-[95vh] overflow-y-auto shadow-2xl">
             <button onClick={() => setSelectedReq(null)} className="absolute top-6 right-8 text-gray-400 hover:text-black transition-colors">
-               <span className="text-xl font-bold">✕</span>
+                <span className="text-xl font-bold">✕</span>
             </button>
             
             <div className="mb-8">
