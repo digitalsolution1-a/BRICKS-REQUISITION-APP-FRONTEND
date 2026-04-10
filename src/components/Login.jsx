@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // Import toast for professional notifications
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -9,29 +9,34 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Specialist Tip: Ensure your VITE_API_BASE_URL is set in Vercel/Render environment settings
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://bricks-requisition-app-12.onrender.com/api';
 
   const handleLogin = async (e) => {
     e.preventDefault();
     
-    // Create a loading toast and store its ID to update it later
     const loadingToast = toast.loading('Verifying credentials...');
     setLoading(true);
 
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
       
-      // Store token and user data
+      // --- THE SAFETY INJECTION ---
+      // We manually ensure 'email' is inside the user object before saving.
+      // This prevents the "User email not found" error in the Dashboard.
+      const userWithEmail = {
+        ...res.data.user,
+        email: res.data.user.email || email // Fallback to the input state email
+      };
+
+      // Store token and the ENHANCED user data
       localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      localStorage.setItem('user', JSON.stringify(userWithEmail));
 
-      const userRole = res.data.user.role;
-      const managementRoles = ['HOD', 'FC', 'MD', 'Accountant', 'Admin'];
+      const userRole = userWithEmail.role?.toUpperCase();
+      const managementRoles = ['HOD', 'FC', 'MD', 'ACCOUNTANT', 'ADMIN'];
 
-      // Success Notification
-      toast.success(`Welcome back, ${res.data.user.name || 'User'}!`, {
-        id: loadingToast, // This replaces the loading toast
+      toast.success(`Welcome back, ${userWithEmail.name || 'User'}!`, {
+        id: loadingToast,
       });
 
       // REDIRECTION LOGIC:
@@ -43,10 +48,8 @@ const Login = () => {
 
     } catch (err) {
       const errorMsg = err.response?.data?.msg || "Login Failed: Please check your credentials.";
-      
-      // Error Notification
       toast.error(errorMsg, {
-        id: loadingToast, // This replaces the loading toast
+        id: loadingToast,
       });
     } finally {
       setLoading(false);
