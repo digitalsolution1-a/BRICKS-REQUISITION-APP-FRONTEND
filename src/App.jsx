@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
-import Dashboard from './components/Dashboard'; // Management/Approval View
-import StaffDashboard from './components/StaffDashboard'; // User personal view
+import Dashboard from './components/Dashboard'; 
+import StaffDashboard from './components/StaffDashboard'; 
 import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
 import Profile from './components/Profile';
@@ -13,15 +13,33 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
-  // If not logged in, force to login page
+  // 1. If not logged in, force to login page
   if (!token) return <Navigate to="/" replace />;
 
-  // If roles are restricted and user doesn't have permissions
-  if (allowedRoles.length > 0 && (!user || !allowedRoles.includes(user.role))) {
-    // If they aren't authorized for a management page, send them to their personal dashboard
-    return <Navigate to="/staff-dashboard" replace />;
+  // 2. Role-based Authorization
+  if (allowedRoles.length > 0) {
+    const hasAccess = user && allowedRoles.includes(user.role);
+    if (!hasAccess) {
+      // If they don't have management roles, send them to staff dashboard
+      return <Navigate to="/staff-dashboard" replace />;
+    }
   }
 
+  return children;
+};
+
+// --- Redirect If Authenticated ---
+// Prevents logged-in users from seeing the Login page
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+  if (token && user) {
+    const managementRoles = ['HOD', 'FC', 'MD', 'Accountant', 'Admin'];
+    return managementRoles.includes(user.role) 
+      ? <Navigate to="/dashboard" replace /> 
+      : <Navigate to="/staff-dashboard" replace />;
+  }
   return children;
 };
 
@@ -29,7 +47,6 @@ function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
-    // 1. PWA Installation Listener
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -38,12 +55,9 @@ function App() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // 2. Request System Notification Permissions
     if ("Notification" in window) {
       if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-        Notification.requestPermission().then(permission => {
-          console.log("Notification permission:", permission);
-        });
+        Notification.requestPermission();
       }
     }
 
@@ -54,9 +68,7 @@ function App() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
+    if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
   return (
@@ -72,12 +84,14 @@ function App() {
       )}
 
       <Routes>
-        {/* Public Entry Point */}
-        <Route path="/" element={<Login />} />
+        {/* Public Entry Point (With Auth Check) */}
+        <Route path="/" element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } />
 
         {/* --- STAFF ROUTES --- */}
-        
-        {/* New Staff Hub: View personal requests, status, and Edit button */}
         <Route 
           path="/staff-dashboard" 
           element={
@@ -87,7 +101,6 @@ function App() {
           } 
         />
 
-        {/* Submission Form */}
         <Route 
           path="/submit-requisition" 
           element={
@@ -97,7 +110,6 @@ function App() {
           } 
         />
 
-        {/* Edit/Update existing Pending requests */}
         <Route 
           path="/edit-requisition/:id" 
           element={
@@ -107,7 +119,6 @@ function App() {
           } 
         />
 
-        {/* Authenticated Route: Personal Profile & History */}
         <Route 
           path="/profile" 
           element={
@@ -118,8 +129,6 @@ function App() {
         />
 
         {/* --- MANAGEMENT ROUTES --- */}
-
-        {/* Management Route: Approval Gateway (HOD, MD, etc.) */}
         <Route 
           path="/dashboard" 
           element={
@@ -129,7 +138,6 @@ function App() {
           } 
         />
 
-        {/* Super Admin Route: Personnel Management */}
         <Route 
           path="/admin/users" 
           element={
@@ -139,7 +147,7 @@ function App() {
           } 
         />
 
-        {/* Global Catch-all: Redirect to Login */}
+        {/* Global Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
