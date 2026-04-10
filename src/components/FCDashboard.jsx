@@ -114,7 +114,7 @@ const FCDashboard = () => {
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none italic">Vetting <span className="text-[#A67C52]">Queue</span></h2>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none italic">FC <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
               <button 
                 onClick={() => setActiveTab('queue')}
