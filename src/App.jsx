@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import RequisitionForm from './components/RequisitionForm';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/Dashboard'; // Management/Approval View
+import StaffDashboard from './components/StaffDashboard'; // User personal view
+import EditRequisition from './components/EditRequisition';
 import UserManagement from './components/UserManagement';
 import Profile from './components/Profile';
 
 // --- Improved ProtectedRoute ---
-// Handles missing tokens or user data without crashing the app
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -17,7 +18,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   // If roles are restricted and user doesn't have permissions
   if (allowedRoles.length > 0 && (!user || !allowedRoles.includes(user.role))) {
-    return <Navigate to="/submit-requisition" replace />;
+    // If they aren't authorized for a management page, send them to their personal dashboard
+    return <Navigate to="/staff-dashboard" replace />;
   }
 
   return children;
@@ -73,12 +75,34 @@ function App() {
         {/* Public Entry Point */}
         <Route path="/" element={<Login />} />
 
-        {/* Authenticated Route: Submission Form (All logged-in staff) */}
+        {/* --- STAFF ROUTES --- */}
+        
+        {/* New Staff Hub: View personal requests, status, and Edit button */}
+        <Route 
+          path="/staff-dashboard" 
+          element={
+            <ProtectedRoute>
+              <StaffDashboard />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Submission Form */}
         <Route 
           path="/submit-requisition" 
           element={
             <ProtectedRoute>
               <RequisitionForm />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Edit/Update existing Pending requests */}
+        <Route 
+          path="/edit-requisition/:id" 
+          element={
+            <ProtectedRoute>
+              <EditRequisition />
             </ProtectedRoute>
           } 
         />
@@ -93,11 +117,13 @@ function App() {
           } 
         />
 
-        {/* Management Route: Approval Gateway */}
+        {/* --- MANAGEMENT ROUTES --- */}
+
+        {/* Management Route: Approval Gateway (HOD, MD, etc.) */}
         <Route 
           path="/dashboard" 
           element={
-            <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'ACCOUNTS', 'Admin']}>
+            <ProtectedRoute allowedRoles={['HOD', 'FC', 'MD', 'Accountant', 'Admin']}>
               <Dashboard />
             </ProtectedRoute>
           } 
