@@ -71,8 +71,8 @@ const FCDashboard = () => {
 
       <main className="max-w-6xl mx-auto p-6">
         <div className="mb-8">
-          <h2 className="text-2xl font-black text-gray-900 uppercase">Verification Queue</h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Vetting HOD-Approved Requisitions</p>
+          <h2 className="text-2xl font-black text-gray-900 uppercase">FC Dashboard</h2>
+          <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Financial Controller Review</p>
         </div>
 
         <div className="grid gap-6">
