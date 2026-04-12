@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 const AccountantDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
-  const [history, setHistory] = useState([]); // NEW: History State
-  const [view, setView] = useState('queue'); // NEW: View Toggle ('queue' or 'history')
+  const [history, setHistory] = useState([]);
+  const [view, setView] = useState('queue'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
@@ -25,14 +25,10 @@ const AccountantDashboard = () => {
       setLoading(true);
       if (!user.email) return navigate('/');
 
-      // Fetch Active Queue (Pending Accountant)
       const queueRes = await axios.get(`${API_BASE_URL}/requisitions/pending/ACCOUNTANT`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Fetch History (Everything past Accountant stage)
-      // Note: Assuming backend has a 'completed' or status filter. 
-      // If not, we filter from a general user/dept route.
       const historyRes = await axios.get(`${API_BASE_URL}/requisitions/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -59,19 +55,6 @@ const AccountantDashboard = () => {
     fetchData();
   }, [user.email, API_BASE_URL, token]);
 
-  const handleEnableNotifications = async () => {
-    if (!("Notification" in window)) return toast.error("Browser not supported");
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      setNotificationsEnabled(true);
-      toast.success("TREASURY ALERTS ACTIVE", {
-        icon: '💰',
-        style: { background: '#000', color: '#A67C52', fontWeight: 'bold' }
-      });
-    }
-  };
-
-  // Switch filter based on active view
   const currentData = view === 'queue' ? requisitions : history;
 
   const filteredRequests = currentData.filter(req => 
@@ -81,9 +64,9 @@ const AccountantDashboard = () => {
   );
 
   const exportToCSV = () => {
-    const headers = "ID,Date,Requester,Vendor,Amount,Currency,Status\n";
+    const headers = "ID,Date,Due Date,Requester,Dept,Vendor,Amount,Currency,Status\n";
     const rows = filteredRequests.map(r => {
-      return `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`;
+      return `${r._id},${new Date(r.createdAt).toLocaleDateString()},${new Date(r.dueDate).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`;
     }).join("\n");
 
     const blob = new Blob([headers + rows], { type: 'text/csv' });
@@ -100,8 +83,8 @@ const AccountantDashboard = () => {
 
     const loadingToast = toast.loading('Recording Disbursement...');
     try {
-      const res = await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
-        action: 'Approved', 
+      await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
+        action: 'Paid', 
         actorRole: 'ACCOUNTANT',
         actorName: user.name || 'Accounts Dept',
         comment: 'Disbursement Completed - Funds Released'
@@ -111,13 +94,10 @@ const AccountantDashboard = () => {
 
       toast.success("TREASURY RECORD UPDATED", { id: loadingToast });
 
-      // INSTANT UI UPDATE
       const paidItem = requisitions.find(r => r._id === id);
       if (paidItem) {
-        // Remove from queue
         setRequisitions(prev => prev.filter(r => r._id !== id));
-        // Add to history locally with updated status
-        setHistory(prev => [{ ...paidItem, status: 'Approved', updatedAt: new Date() }, ...prev]);
+        setHistory(prev => [{ ...paidItem, status: 'Paid', updatedAt: new Date() }, ...prev]);
       }
       
     } catch (err) {
@@ -168,7 +148,7 @@ const AccountantDashboard = () => {
         </div>
       </nav>
 
-      {/* DROPDOWN (Matches existing) */}
+      {/* DROPDOWN */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -185,13 +165,6 @@ const AccountantDashboard = () => {
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* MOBILE VIEW TOGGLE */}
-        <div className="flex md:hidden bg-white mb-6 p-2 rounded-2xl border border-gray-100 shadow-sm">
-           <button onClick={() => setView('queue')} className={`flex-1 py-3 rounded-xl text-[9px] font-black ${view === 'queue' ? 'bg-black text-white' : 'text-gray-400'}`}>QUEUE</button>
-           <button onClick={() => setView('history')} className={`flex-1 py-3 rounded-xl text-[9px] font-black ${view === 'history' ? 'bg-black text-white' : 'text-gray-400'}`}>HISTORY</button>
-        </div>
-
-        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
@@ -215,11 +188,10 @@ const AccountantDashboard = () => {
           </div>
         </div>
 
-        {/* LIST */}
         <div className="space-y-6">
           {filteredRequests.map(req => {
-            const mdApproval = req.approvalHistory?.find(h => h.role === 'MD');
-            const accountantUpdate = req.approvalHistory?.find(h => h.role === 'ACCOUNTANT');
+            const mdApproval = req.approvalHistory?.find(h => h.actorRole === 'MD');
+            const accountantUpdate = req.approvalHistory?.find(h => h.actorRole === 'ACCOUNTANT');
             
             return (
               <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
@@ -227,19 +199,38 @@ const AccountantDashboard = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-4">
                       <span className={`text-[8px] font-black px-3 py-1 rounded-full tracking-widest ${view === 'queue' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                        {view === 'queue' ? 'APPROVED BY MD' : 'DISBURSED'}
+                        {view === 'queue' ? 'APPROVED BY MD' : 'COMPLETED'}
                       </span>
                       <span className="text-gray-300 font-bold text-[9px] tracking-widest">ID: #{req._id.slice(-6)}</span>
                     </div>
                     
                     <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
-                    <div className="flex gap-4 mt-2 mb-6">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase">Staff: <span className="text-black">{req.requesterName}</span></p>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase">Date: <span className="text-black">{new Date(req.createdAt).toLocaleDateString()}</span></p>
-                    </div>
                     
-                    <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border-2 border-dashed border-gray-100">
-                      <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-2 italic">
+                    {/* INFO GRID: Added Dept, Due Date, and Mode */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 mb-6">
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Staff</p>
+                        <p className="text-[10px] font-bold text-black">{req.requesterName}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Due Date</p>
+                        <p className="text-[10px] font-bold text-red-600">{new Date(req.dueDate).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Mode</p>
+                        <p className="text-[10px] font-bold text-black">{req.modeOfPayment}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Dept</p>
+                        <p className="text-[10px] font-bold text-[#A67C52]">{req.department}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border-2 border-dashed border-gray-100 mb-4">
+                      <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-1 italic">Beneficiary Details:</p>
+                      <p className="text-xs font-bold text-gray-700 mb-4">{req.beneficiaryDetails}</p>
+                      
+                      <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-1 italic">
                         {view === 'queue' ? 'Executive Instructions:' : 'Disbursement Note:'}
                       </p>
                       <p className="text-sm font-bold text-gray-700 italic">
@@ -256,8 +247,8 @@ const AccountantDashboard = () => {
                     
                     {view === 'queue' && (
                       <div className="w-full space-y-3 mt-8">
-                        {req.attachment && (
-                          <a href={req.attachment} target="_blank" rel="noreferrer" className="flex items-center justify-center w-full py-3 bg-white border border-gray-200 rounded-xl text-[9px] font-black hover:bg-gray-100 transition-all tracking-widest">
+                        {req.attachmentUrl && (
+                          <a href={req.attachmentUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center w-full py-3 bg-white border border-gray-200 rounded-xl text-[9px] font-black hover:bg-gray-100 transition-all tracking-widest">
                             📎 VIEW INVOICE
                           </a>
                         )}
@@ -271,8 +262,8 @@ const AccountantDashboard = () => {
                     )}
 
                     {view === 'history' && (
-                      <div className="mt-8 text-right">
-                         <p className="text-[8px] font-black text-green-600 border border-green-200 bg-green-50 px-4 py-2 rounded-lg">PAID ON {new Date(req.updatedAt).toLocaleDateString()}</p>
+                      <div className="mt-8 text-right w-full">
+                         <p className="text-[8px] font-black text-green-600 border border-green-200 bg-green-50 px-4 py-2 rounded-lg inline-block">PAID: {new Date(req.updatedAt).toLocaleDateString()}</p>
                       </div>
                     )}
                   </div>
