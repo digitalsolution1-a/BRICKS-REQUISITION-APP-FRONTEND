@@ -1,6 +1,6 @@
 const CACHE_NAME = 'bricks-v1';
 
-// We cache the core UI but allow the browser to fetch fresh data for requisitions
+// Assets to cache for offline availability
 const urlsToCache = [
   '/',
   '/index.html',
@@ -18,11 +18,11 @@ self.addEventListener('install', (event) => {
       return cache.addAll(urlsToCache);
     })
   );
-  // Force the waiting service worker to become the active service worker
+  // Force the waiting service worker to become active immediately
   self.skipWaiting();
 });
 
-// 2. Activate Event: Clean up old caches
+// 2. Activate Event: Clean up old caches for version control
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -38,25 +38,80 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. Fetch Event: Network First, then Cache
-// This ensures staff see live updates if online, but the app still opens if offline
+// 3. Fetch Event: Network First, then Cache fallback
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests (like API calls to Render/MongoDB) 
-  // to prevent caching sensitive requisition data
+  // Only handle requests from our own origin to avoid caching external API data/sensitive info
   if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // If the network is available, use it and update the cache
+        // Update cache with fresh version from network
         return caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, response.clone());
           return response;
         });
       })
       .catch(() => {
-        // If network fails (e.g., at sea), look in the cache
+        // Fallback to cache if network is unavailable (e.g., poor maritime connection)
         return caches.match(event.request);
       })
+  );
+});
+
+/**
+ * --- NATIVE APP NOTIFICATION LOGIC ---
+ */
+
+// 4. Push Event: Listens for signals from the backend even when the app is closed
+self.addEventListener('push', (event) => {
+  let data = { 
+    title: 'BRICKS Update', 
+    body: 'New requisition activity recorded.', 
+    url: '/' 
+  };
+  
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/logo192.png',
+    badge: '/logo192.png', // Shown in the Android/iOS status bar
+    vibrate: [200, 100, 200], // Native haptic feedback
+    tag: 'requisition-sync', // Groups similar notifications
+    data: {
+      url: data.url || '/'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// 5. Notification Click: Logic to open or focus the app window
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close(); // Automatically dismiss the alert
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if the app is already open in any tab/window
+      for (let i = 0; i < windowClients.length; i++) {
+        let client = windowClients[i];
+        if (client.url === event.notification.data.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If the app is closed, launch it as a fresh native window
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url || '/');
+      }
+    })
   );
 });
