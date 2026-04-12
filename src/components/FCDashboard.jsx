@@ -8,12 +8,19 @@ const FCDashboard = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('queue'); // 'queue' or 'history'
+  const [activeTab, setActiveTab] = useState('queue'); 
   const [selectedReq, setSelectedReq] = useState(null); 
   const [fcComment, setFcComment] = useState('');
   
+  // NATIVE PWA STATES
+  const [showProfile, setShowProfile] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    Notification.permission === 'granted'
+  );
+  
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const fetchData = async () => {
@@ -25,28 +32,28 @@ const FCDashboard = () => {
     try {
       setLoading(true);
       
-      // 1. Fetch Pending Queue (Critical)
-      try {
-        const queueRes = await axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
+      // Fetch Pending Queue and History
+      const [queueRes, historyRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
           headers: { Authorization: `Bearer ${token}` }
-        });
-        setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
-      } catch (qErr) {
-        console.error("Queue Sync Error:", qErr);
-        toast.error("Failed to sync current vetting queue");
+        }),
+        axios.get(`${API_BASE_URL}/requisitions/history/FC`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: [] }))
+      ]);
+
+      const queueData = Array.isArray(queueRes.data) ? queueRes.data : [];
+      setRequisitions(queueData);
+      setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+
+      // UPDATE NATIVE APP BADGE
+      if ('setAppBadge' in navigator) {
+        queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
       }
 
-      // 2. Fetch History (Optional - won't crash the dashboard if endpoint is missing)
-      try {
-        const historyRes = await axios.get(`${API_BASE_URL}/requisitions/history/FC`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
-      } catch (hErr) {
-        console.warn("History endpoint not reachable yet.");
-        setHistory([]); // Default to empty if backend isn't ready
-      }
-
+    } catch (err) {
+      console.error("Sync Error:", err);
+      toast.error("Failed to sync financial portal");
     } finally {
       setLoading(false);
     }
@@ -55,6 +62,27 @@ const FCDashboard = () => {
   useEffect(() => {
     fetchData();
   }, [token, API_BASE_URL]);
+
+  // NATIVE NOTIFICATION TRIGGER
+  const handleEnableNotifications = async () => {
+    if (!("Notification" in window)) return toast.error("Notifications not supported");
+    
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      setNotificationsEnabled(true);
+      toast.success("FINANCE ALERTS ACTIVE", {
+        icon: '🔔',
+        style: { background: '#000', color: '#A67C52', fontWeight: 'bold' }
+      });
+      
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification("BRICKS FINANCE", {
+          body: "Push alerts successfully synchronized.",
+          icon: '/logo192.png'
+        });
+      });
+    }
+  };
 
   const filterList = (list) => {
     const data = Array.isArray(list) ? list : [];
@@ -69,16 +97,16 @@ const FCDashboard = () => {
     const dataToExport = activeTab === 'queue' ? filterList(requisitions) : filterList(history);
     if (dataToExport.length === 0) return toast.error("No data to export");
 
-    const headers = "ID,Date,Requester,Department,Vendor,Amount,Currency,Status,Vetting_Note\n";
+    const headers = "ID,Date,Requester,Department,Vendor,Amount,Currency,Status\n";
     const data = dataToExport.map(r => 
-      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status},"${r.fcComment || ''}"`
+      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`
     ).join("\n");
     
     const blob = new Blob([headers + data], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `FC_${activeTab.toUpperCase()}_Report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `FC_Report_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
   };
 
@@ -89,7 +117,6 @@ const FCDashboard = () => {
 
     const loadingToast = toast.loading('Synchronizing vetting results...');
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
         actorRole: 'FC',
@@ -99,12 +126,12 @@ const FCDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success(`Request ${action === 'Approved' ? 'Forwarded' : 'Declined'} successfully`, { id: loadingToast });
+      toast.success(action === 'Approved' ? 'FORWARDED TO MD' : 'DECLINED', { id: loadingToast });
       setSelectedReq(null);
       setFcComment('');
       fetchData(); 
     } catch (err) {
-      toast.error("Action failed. Check server connection.", { id: loadingToast });
+      toast.error("Action failed", { id: loadingToast });
     }
   };
 
@@ -118,7 +145,7 @@ const FCDashboard = () => {
   return (
     <div className="min-h-screen bg-[#FBF9F6] uppercase">
       {/* NAVIGATION */}
-      <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50">
+      <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#A67C52] rounded-lg flex items-center justify-center font-black text-xs">B</div>
           <div>
@@ -126,8 +153,48 @@ const FCDashboard = () => {
             <p className="text-[8px] font-bold text-gray-500 uppercase">FC DASHBOARD</p>
           </div>
         </div>
-        <button onClick={() => { localStorage.clear(); navigate('/'); }} className="text-[10px] font-black border border-white/20 px-4 py-2 rounded-xl hover:bg-white hover:text-black transition-all shadow-lg">LOGOUT</button>
+        
+        <div className="flex items-center gap-4">
+           {/* ALERTS STATUS */}
+           {!notificationsEnabled && (
+             <button 
+              onClick={handleEnableNotifications}
+              className="hidden md:block bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all"
+             >
+               🔔 ENABLE ALERTS
+             </button>
+           )}
+
+           {/* PROFILE TOGGLE */}
+           <button 
+            onClick={() => setShowProfile(!showProfile)}
+            className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900"
+           >
+             <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'FC'}</span>
+           </button>
+        </div>
       </nav>
+
+      {/* PROFILE DROPDOWN */}
+      {showProfile && (
+        <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded-2xl mx-auto mb-3 flex items-center justify-center text-xl font-black text-[#A67C52]">
+              {user?.name?.substring(0,2).toUpperCase() || 'FC'}
+            </div>
+            <h4 className="text-sm font-black text-gray-900">{user?.name || 'Financial Controller'}</h4>
+            <p className="text-[9px] font-bold text-[#A67C52]">Department: Finance</p>
+          </div>
+          <div className="space-y-2 pt-4 border-t border-gray-50">
+             <button onClick={handleEnableNotifications} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-gray-50 flex justify-between">
+               ALERTS <span>{notificationsEnabled ? 'ACTIVE' : 'OFF'}</span>
+             </button>
+             <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+               TERMINATE SESSION
+             </button>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto p-6">
         {/* HEADER SECTION */}
@@ -170,7 +237,7 @@ const FCDashboard = () => {
         <div className="grid gap-4">
           {activeTab === 'queue' ? (
             filterList(requisitions).map(req => (
-              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all active:scale-[0.99]">
                 <div className="flex items-center gap-6 flex-1">
                   <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
                     <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
@@ -178,7 +245,7 @@ const FCDashboard = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded uppercase">HOD Approved</span>
+                      <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">HOD Approved</span>
                       <span className="text-gray-400 font-bold text-[9px] tracking-widest">{req.department}</span>
                     </div>
                     <h3 className="text-xl font-black text-gray-900 leading-none tracking-tight">{req.requesterName}</h3>
@@ -200,8 +267,7 @@ const FCDashboard = () => {
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">VETTED DATE</th>
                     <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">STAFF</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">VALUE</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">STATUS</th>
+                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest text-center">STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,10 +276,9 @@ const FCDashboard = () => {
                       <td className="p-6 text-[10px] font-bold text-gray-500">{new Date(req.updatedAt).toLocaleDateString()}</td>
                       <td className="p-6">
                         <p className="text-[10px] font-black text-gray-900 leading-none mb-1">{req.requesterName}</p>
-                        <p className="text-[8px] font-bold text-gray-400">{req.department}</p>
+                        <p className="text-[11px] font-black text-[#A67C52]">{req.currency} {req.amount?.toLocaleString()}</p>
                       </td>
-                      <td className="p-6 text-[11px] font-black text-[#A67C52]">{req.currency} {req.amount?.toLocaleString()}</td>
-                      <td className="p-6">
+                      <td className="p-6 text-center">
                         <span className={`text-[8px] font-black px-3 py-1 rounded-full ${req.status === 'Approved' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
                           {req.status === 'Approved' ? 'FORWARDED' : 'DECLINED'}
                         </span>
@@ -225,14 +290,9 @@ const FCDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'queue' && filterList(requisitions).length === 0 && (
+          {(activeTab === 'queue' && requisitions.length === 0) && (
             <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
-              <p className="text-gray-300 font-black tracking-[0.4em] text-xs">NO PENDING VETTING</p>
-            </div>
-          )}
-          {activeTab === 'history' && filterList(history).length === 0 && (
-            <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
-              <p className="text-gray-300 font-black tracking-[0.4em] text-xs">NO VETTING HISTORY RECORDED</p>
+              <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase underline decoration-[#A67C52]">No pending vetting items</p>
             </div>
           )}
         </div>
@@ -246,7 +306,7 @@ const FCDashboard = () => {
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">Financial Vetting</h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase">Analyzing Dept: {selectedReq.department}</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Analyzing Dept: {selectedReq.department}</p>
                 </div>
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
@@ -263,7 +323,7 @@ const FCDashboard = () => {
                 
                 <div className="col-span-2 bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 italic shadow-inner">
                   <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest not-italic">Description of Need</p>
-                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed">"{selectedReq.requestNarrative || selectedReq.description}"</p>
+                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
 
                 <div className="col-span-2">
@@ -275,35 +335,35 @@ const FCDashboard = () => {
                       rel="noreferrer"
                       className="flex items-center justify-center gap-4 bg-gray-900 text-[#A67C52] w-full py-5 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all shadow-xl"
                     >
-                      📎 REVIEW SUPPORTING EVIDENCE (PDF/IMAGE)
+                      📎 REVIEW SUPPORTING EVIDENCE
                     </a>
                   ) : (
                     <div className="bg-red-50 border-2 border-dashed border-red-100 py-5 rounded-2xl text-center">
-                       <p className="text-[10px] font-black text-red-400">CRITICAL: NO SUPPORTING ATTACHMENT</p>
+                       <p className="text-[10px] font-black text-red-400">CRITICAL: NO ATTACHMENT PROVIDED</p>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="border-t border-gray-100 pt-8 mt-4">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">FC Vetting Remark (Visible to MD)</p>
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">Vetting Remarks for MD</p>
                 <textarea 
                   value={fcComment}
                   onChange={(e) => setFcComment(e.target.value)}
-                  placeholder="Provide brief vetting feedback for final MD approval..."
+                  placeholder="e.g., Budget cleared, invoice verified..."
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
                 />
                 
                 <div className="flex flex-col md:flex-row gap-4">
                   <button 
                     onClick={() => handleAction(selectedReq._id, 'Approved')}
-                    className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] transition-all"
+                    className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
                   >
                     FORWARD TO MD
                   </button>
                   <button 
                     onClick={() => handleAction(selectedReq._id, 'Declined')}
-                    className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all"
+                    className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95"
                   >
                     DECLINE REQUEST
                   </button>
