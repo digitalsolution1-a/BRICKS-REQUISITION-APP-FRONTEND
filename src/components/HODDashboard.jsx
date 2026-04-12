@@ -31,7 +31,6 @@ const HODDashboard = () => {
 
     try {
       setLoading(true);
-      // Sync Pending Queue and History simultaneously
       const [queueRes, historyRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/HOD?email=${user.email}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -45,7 +44,6 @@ const HODDashboard = () => {
       setRequisitions(queueData);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
-      // UPDATE NATIVE APP BADGE
       if ('setAppBadge' in navigator) {
         queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
       }
@@ -64,7 +62,6 @@ const HODDashboard = () => {
 
   const handleEnableNotifications = async () => {
     if (!("Notification" in window)) return toast.error("Notifications not supported");
-    
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       setNotificationsEnabled(true);
@@ -270,8 +267,8 @@ const HODDashboard = () => {
       {/* --- PROCESS MODAL --- */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 md:p-12 overflow-y-auto max-h-[85vh]">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter italic uppercase underline decoration-[#A67C52] decoration-4 underline-offset-4">Departmental Review</h3>
@@ -280,45 +277,45 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div className="border-b border-gray-50 pb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.requesterName}</p>
+                  <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
                 </div>
-                <div className="border-b border-gray-50 pb-4 text-right">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Value</p>
-                  <p className="text-lg font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                  <p className="text-xs font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
                 </div>
-                <div className="border-b border-gray-50 pb-4">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
                   <p className="text-xs font-black text-red-500">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
                 </div>
-                <div className="border-b border-gray-50 pb-4 text-right">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Mode</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.paymentMode || 'Not Specified'}</p>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.paymentMode || 'N/A'}</p>
                 </div>
               </div>
 
               <div className="space-y-6 mb-10">
-                <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 shadow-inner">
+                <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100">
                   <p className="text-[10px] font-black text-gray-300 mb-2 uppercase italic tracking-widest">Description of Need</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
                 
-                <div className="col-span-full">
-                  <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">Supporting Document</p>
+                {/* EMBEDDED DOCUMENT VIEWER */}
+                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
+                  <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Supporting Documentation Preview</p>
                   {selectedReq.attachmentUrl ? (
-                    <a 
-                      href={selectedReq.attachmentUrl} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="flex items-center justify-center gap-3 bg-black text-[#A67C52] w-full py-5 rounded-2xl text-[10px] font-black tracking-widest hover:scale-[1.01] transition-all shadow-xl"
-                    >
-                      📎 REVIEW ATTACHMENT
-                    </a>
+                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100">
+                      <iframe 
+                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
+                        className="w-full h-full border-none"
+                        title="Supporting Document"
+                      />
+                    </div>
                   ) : (
-                    <div className="text-center py-5 bg-red-50 rounded-2xl border-2 border-dashed border-red-100">
-                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">CRITICAL: NO ATTACHMENT PROVIDED</p>
+                    <div className="h-40 flex items-center justify-center">
+                      <p className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-8 py-2 rounded-full border-2 border-dashed border-red-100">CRITICAL: NO ATTACHMENT PROVIDED</p>
                     </div>
                   )}
                 </div>
