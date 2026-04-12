@@ -40,7 +40,6 @@ const FCDashboard = () => {
       setRequisitions(queueData);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
-      // PWA Badge Update
       if ('setAppBadge' in navigator) {
         queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
       }
@@ -66,7 +65,6 @@ const FCDashboard = () => {
         style: { background: '#000', color: '#A67C52', fontWeight: 'bold' }
       });
       
-      // Trigger service worker confirmation if available
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(reg => {
           reg.showNotification("BRICKS FINANCE", {
@@ -155,7 +153,7 @@ const FCDashboard = () => {
                🔔 ENABLE ALERTS
              </button>
            )}
-           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900">
+           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg">
              <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'FC'}</span>
            </button>
         </div>
@@ -276,71 +274,75 @@ const FCDashboard = () => {
       {/* --- FC PROCESS MODAL --- */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-3xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 md:p-12 overflow-y-auto max-h-[85vh]">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">Financial Vetting</h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Analyzing ID: #{selectedReq._id.slice(-6)}</p>
                 </div>
-                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
+                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
               {/* CORE METRICS GRID */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-10">
-                <div className="border-b border-gray-50 pb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.requesterName}</p>
+                  <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
                 </div>
-                <div className="border-b border-gray-50 pb-4">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Dept</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.department}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
                   <p className="text-xs font-black text-red-500">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
                 </div>
-                <div className="border-b border-gray-50 pb-4">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Value</p>
-                  <p className="text-sm font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                  <p className="text-xs font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
                 </div>
-                
-                <div className="col-span-full bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 shadow-inner">
-                  <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest">Payment Beneficiary</p>
-                  <p className="text-[11px] font-bold text-gray-700 mb-4">{selectedReq.beneficiaryDetails}</p>
-                  
-                  <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest">Justification</p>
+              </div>
+
+              <div className="space-y-6 mb-10">
+                <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 shadow-inner">
+                  <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest italic">Beneficiary / Narrative</p>
+                  <p className="text-[11px] font-bold text-gray-700 mb-3">{selectedReq.beneficiaryDetails}</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
 
-                <div className="col-span-full">
-                  <p className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">Verification Document</p>
+                {/* EMBEDDED DOCUMENT PREVIEW */}
+                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
+                   <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Audit Evidence Preview</p>
                   {selectedReq.attachmentUrl ? (
-                    <a 
-                      href={selectedReq.attachmentUrl} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="flex items-center justify-center gap-4 bg-gray-900 text-[#A67C52] w-full py-5 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all shadow-xl"
-                    >
-                      📎 REVIEW SUPPORTING EVIDENCE
-                    </a>
+                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 shadow-sm">
+                      <iframe 
+                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
+                        className="w-full h-full border-none"
+                        title="Vetting Attachment"
+                      />
+                    </div>
                   ) : (
-                    <div className="bg-red-50 border-2 border-dashed border-red-100 py-5 rounded-2xl text-center">
-                        <p className="text-[10px] font-black text-red-400 tracking-widest">CRITICAL: NO ATTACHMENT PROVIDED</p>
+                    <div className="h-40 flex items-center justify-center bg-red-50 rounded-[2rem]">
+                        <p className="text-[10px] font-black text-red-400 tracking-widest uppercase border-2 border-dashed border-red-100 px-6 py-2 rounded-full">NO ATTACHMENT PROVIDED</p>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="border-t border-gray-100 pt-8 mt-4">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">Vetting Remarks (Visible to MD)</p>
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">FC Vetting Remarks (Visible to MD)</p>
                 <textarea 
                   value={fcComment}
                   onChange={(e) => setFcComment(e.target.value)}
-                  placeholder="e.g., Budget cleared, invoice verified, recommended for approval..."
+                  placeholder="Verify budget line, invoice authenticity, and specific recommendations..."
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
                 />
                 
                 <div className="flex flex-col md:flex-row gap-4">
                   <button 
                     onClick={() => handleAction(selectedReq._id, 'Approved')}
-                    className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                    className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
                   >
                     FORWARD TO MD
                   </button>
