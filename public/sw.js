@@ -1,76 +1,65 @@
-const CACHE_NAME = 'bricks-v5'; // Updated version to trigger cache refresh
+const CACHE_NAME = 'bricks-v9'; // Incremented to force square logo update
 
 // Assets to cache for offline availability
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/BRICKS LOGO.PNG', // Updated to match your new file
+  '/BRICKS LOGO.png', // Using the exact filename you uploaded
   '/favicon.ico'
 ];
 
-// 1. Install Event: Cache UI Assets
+// 1. Install Event: Cache UI assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('⚓ BRICKS: Pre-caching UI assets and Logo');
+      console.log('⚓ BRICKS: Caching Square Assets v9');
       return cache.addAll(urlsToCache);
     })
   );
-  // Force the waiting service worker to become active immediately
   self.skipWaiting();
 });
 
-// 2. Activate Event: Clean up old caches & take control
+// 2. Activate Event: Cleanup old stretched caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
-            console.log('🧹 BRICKS: Clearing old cache version');
+            console.log('🧹 BRICKS: Clearing old cache');
             return caches.delete(cache);
           }
         })
       );
     })
   );
-  // Immediately take control of all open tabs
   return self.clients.claim();
 });
 
-// 3. Fetch Event: Network First with Cache Fallback for UI
+// 3. Fetch Event: Network First Strategy
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests for internal assets to avoid API conflicts
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Update cache with fresh version from network
         const resClone = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, resClone);
         });
         return response;
       })
-      .catch(() => {
-        // Fallback to cache if network is unavailable
-        return caches.match(event.request);
-      })
+      .catch(() => caches.match(event.request))
   );
 });
 
-/**
- * --- NATIVE APP NOTIFICATION LOGIC ---
- */
-
-// 4. Push Event: Listen for backend signals
+// 4. Push Event: Native Notifications
 self.addEventListener('push', (event) => {
   let data = { 
     title: 'BRICKS TREASURY', 
-    body: 'New requisition activity recorded.', 
+    body: 'New requisition update.', 
     url: '/' 
   };
   
@@ -84,35 +73,27 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/BRICKS LOGO.PNG', // Updated icon path
-    badge: '/BRICKS LOGO.PNG', // Updated badge path
+    icon: '/BRICKS LOGO.png',
+    badge: '/BRICKS LOGO.png',
     vibrate: [200, 100, 200],
     tag: 'requisition-sync',
-    data: {
-      url: data.url || '/'
-    }
+    data: { url: data.url || '/' }
   };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// 5. Notification Click: Open or focus the app window
+// 5. Notification Click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (let i = 0; i < windowClients.length; i++) {
-        let client = windowClients[i];
+      for (let client of windowClients) {
         if (client.url === event.notification.data.url && 'focus' in client) {
           return client.focus();
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(event.notification.data.url || '/');
-      }
+      if (clients.openWindow) return clients.openWindow(event.notification.data.url || '/');
     })
   );
 });
