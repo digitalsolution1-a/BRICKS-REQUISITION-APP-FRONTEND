@@ -31,7 +31,6 @@ const MDDashboard = () => {
 
     try {
       setLoading(true);
-      // MD Dashboard pulls from both the MD queue and the FC backlog for override capability
       const [mdRes, fcRes, historyRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/MD`, { 
           headers: { Authorization: `Bearer ${token}` } 
@@ -192,7 +191,6 @@ const MDDashboard = () => {
 
         {activeTab === 'pending' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* MD AUTHORIZATION QUEUE */}
             <section className="space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
                 <h3 className="text-[10px] font-black text-[#A67C52] tracking-[0.3em]">Direct Authorization</h3>
@@ -213,7 +211,6 @@ const MDDashboard = () => {
               {inbox.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic underline decoration-[#A67C52] underline-offset-4">Queue empty</p>}
             </section>
 
-            {/* FINANCE OVERRIDE QUEUE */}
             <section className="space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
                 <h3 className="text-[10px] font-black text-red-500 tracking-[0.3em]">FC Oversight (Override)</h3>
@@ -279,7 +276,9 @@ const MDDashboard = () => {
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
                     {selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
                   </h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
+                    ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
+                  </p>
                 </div>
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
@@ -290,16 +289,31 @@ const MDDashboard = () => {
                   <p className="text-2xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
                 </div>
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date / Mode</p>
-                  <p className="text-xs font-black text-gray-800 uppercase">{new Date(selectedReq.dueDate).toLocaleDateString()} — {selectedReq.paymentMode}</p>
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester / Vendor</p>
+                  <p className="text-[11px] font-black text-gray-800 uppercase truncate">
+                    {selectedReq.requesterName} {selectedReq.vendorName ? `→ ${selectedReq.vendorName}` : ''}
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-6 mb-10">
+                {/* REQUEST DESCRIPTION */}
                 <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest">Requisition Purpose</p>
-                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
+                  <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
+                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
+                    "{selectedReq.requestNarrative || selectedReq.description || 'No description provided.'}"
+                  </p>
                 </div>
+
+                {/* FC COMMENT / OVERSIGHT BLOCK */}
+                {(selectedReq.fcComment || (selectedReq.approvals && selectedReq.approvals.find(a => a.role === 'FC')?.comment)) && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100 animate-in slide-in-from-left duration-500">
+                    <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
+                    <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
+                      "{selectedReq.fcComment || selectedReq.approvals.find(a => a.role === 'FC').comment}"
+                    </p>
+                  </div>
+                )}
 
                 {selectedReq.attachmentUrl ? (
                   <a href={selectedReq.attachmentUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-4 bg-gray-900 text-[#A67C52] w-full py-5 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all shadow-xl">
