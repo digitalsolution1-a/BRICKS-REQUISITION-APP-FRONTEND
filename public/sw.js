@@ -1,12 +1,11 @@
-const CACHE_NAME = 'bricks-v2'; // Incremented version to force update
+const CACHE_NAME = 'bricks-v5'; // Updated version to trigger cache refresh
 
 // Assets to cache for offline availability
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo192.png',
-  '/logo512.png',
+  '/BRICKS LOGO.PNG', // Updated to match your new file
   '/favicon.ico'
 ];
 
@@ -14,7 +13,7 @@ const urlsToCache = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('⚓ BRICKS: Pre-caching UI assets');
+      console.log('⚓ BRICKS: Pre-caching UI assets and Logo');
       return cache.addAll(urlsToCache);
     })
   );
@@ -85,8 +84,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/logo192.png',
-    badge: '/logo192.png',
+    icon: '/BRICKS LOGO.PNG', // Updated icon path
+    badge: '/BRICKS LOGO.PNG', // Updated badge path
     vibrate: [200, 100, 200],
     tag: 'requisition-sync',
     data: {
