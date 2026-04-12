@@ -128,6 +128,38 @@ const FCDashboard = () => {
     }
   };
 
+  // --- NEW ATTACHMENT WRAPPER LOGIC ---
+  const renderViewer = (url) => {
+    if (!url) return null;
+    
+    // Check if file is an image
+    const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(url);
+    
+    if (isImage) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-white p-4">
+          <img 
+            src={url} 
+            alt="Evidence" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-sm"
+          />
+        </div>
+      );
+    }
+
+    // Otherwise use Google Viewer for PDF, Word, Excel
+    const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+    
+    return (
+      <iframe 
+        src={googleViewerUrl} 
+        className="w-full h-full border-none"
+        title="Document Viewer"
+        key={url} // Forces reload when URL changes
+      />
+    );
+  };
+
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white">
       <div className="animate-spin h-10 w-10 border-4 border-[#A67C52] border-t-transparent rounded-full mb-4"></div>
@@ -311,16 +343,25 @@ const FCDashboard = () => {
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
 
-                {/* EMBEDDED DOCUMENT PREVIEW */}
+                {/* --- UPDATED EMBEDDED VIEWER --- */}
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
-                   <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Audit Evidence Preview</p>
+                   <div className="flex justify-between items-center mb-2 mt-4 px-6">
+                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Audit Evidence Preview</p>
+                     {selectedReq.attachmentUrl && (
+                        <a 
+                          href={selectedReq.attachmentUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-[8px] font-black text-[#A67C52] hover:underline"
+                        >
+                          OPEN FULL ↗
+                        </a>
+                     )}
+                   </div>
+
                   {selectedReq.attachmentUrl ? (
-                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 shadow-sm">
-                      <iframe 
-                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
-                        className="w-full h-full border-none"
-                        title="Vetting Attachment"
-                      />
+                    <div className="w-full h-[450px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 shadow-sm relative">
+                      {renderViewer(selectedReq.attachmentUrl)}
                     </div>
                   ) : (
                     <div className="h-40 flex items-center justify-center bg-red-50 rounded-[2rem]">
