@@ -2,13 +2,12 @@
   "short_name": "BRICKS",
   "name": "BRICKS Mursten Mattoni Limited",
   "description": "Enterprise requisition and workflow management for BRICKS.",
-  "id": "/?source=pwa",
-  "start_url": "/",
+  "id": "/",
+  "start_url": "/?utm_source=pwa",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "minimal-ui"],
   "scope": "/",
   "orientation": "portrait",
-  "theme_color": "#003366",
+  "theme_color": "#000000",
   "background_color": "#ffffff",
   "icons": [
     {
@@ -20,13 +19,25 @@
       "src": "logo192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ]
 }
