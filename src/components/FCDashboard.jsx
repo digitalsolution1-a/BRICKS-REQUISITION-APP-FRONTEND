@@ -40,6 +40,7 @@ const FCDashboard = () => {
       setRequisitions(queueData);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
+      // PWA Badge Update
       if ('setAppBadge' in navigator) {
         queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
       }
@@ -64,15 +65,26 @@ const FCDashboard = () => {
         icon: '🔔',
         style: { background: '#000', color: '#A67C52', fontWeight: 'bold' }
       });
+      
+      // Trigger service worker confirmation if available
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification("BRICKS FINANCE", {
+            body: "Push alerts successfully synchronized.",
+            icon: '/logo192.png'
+          });
+        });
+      }
     }
   };
 
   const filterList = (list) => {
-    return list.filter(req => 
+    const data = Array.isArray(list) ? list : [];
+    return data.filter(req => 
       req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req._id.includes(searchTerm)
+      req._id?.includes(searchTerm)
     );
   };
 
@@ -80,9 +92,9 @@ const FCDashboard = () => {
     const dataToExport = activeTab === 'queue' ? filterList(requisitions) : filterList(history);
     if (dataToExport.length === 0) return toast.error("No data to export");
 
-    const headers = "ID,Date,Due Date,Requester,Department,Vendor,Amount,Currency,Status\n";
+    const headers = "ID,Date,Requester,Department,Vendor,Amount,Currency,Status\n";
     const data = dataToExport.map(r => 
-      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${new Date(r.dueDate).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`
+      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`
     ).join("\n");
     
     const blob = new Blob([headers + data], { type: 'text/csv' });
