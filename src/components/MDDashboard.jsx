@@ -269,9 +269,9 @@ const MDDashboard = () => {
       {/* ACTION MODAL */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-3xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 md:p-12 overflow-y-auto max-h-[85vh]">
-              <div className="flex justify-between items-start mb-10">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
+              <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
                     {selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
@@ -283,21 +283,28 @@ const MDDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              {/* STATS STRIP */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
                   <p className="text-2xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
                 </div>
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester / Vendor</p>
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Staff / Vendor</p>
                   <p className="text-[11px] font-black text-gray-800 uppercase truncate">
                     {selectedReq.requesterName} {selectedReq.vendorName ? `→ ${selectedReq.vendorName}` : ''}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date / Mode</p>
+                  <p className="text-[11px] font-black text-gray-800 uppercase">
+                    {new Date(selectedReq.dueDate).toLocaleDateString()} — {selectedReq.paymentMode}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-6 mb-10">
-                {/* REQUEST DESCRIPTION */}
+                {/* NARRATIVE */}
                 <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
@@ -305,9 +312,9 @@ const MDDashboard = () => {
                   </p>
                 </div>
 
-                {/* FC COMMENT / OVERSIGHT BLOCK */}
+                {/* FC COMMENT */}
                 {(selectedReq.fcComment || (selectedReq.approvals && selectedReq.approvals.find(a => a.role === 'FC')?.comment)) && (
-                  <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100 animate-in slide-in-from-left duration-500">
+                  <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
                     <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
                     <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
                       "{selectedReq.fcComment || selectedReq.approvals.find(a => a.role === 'FC').comment}"
@@ -315,15 +322,23 @@ const MDDashboard = () => {
                   </div>
                 )}
 
-                {selectedReq.attachmentUrl ? (
-                  <a href={selectedReq.attachmentUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-4 bg-gray-900 text-[#A67C52] w-full py-5 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all shadow-xl">
-                    📎 VIEW SUPPORTING DOCUMENTATION
-                  </a>
-                ) : (
-                  <div className="text-center py-4 bg-red-50 rounded-2xl border-2 border-dashed border-red-100">
-                    <p className="text-[9px] font-black text-red-400 uppercase tracking-widest">No Document Attached</p>
-                  </div>
-                )}
+                {/* EMBEDDED DOCUMENT VIEWER */}
+                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
+                  <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Supporting Documentation Preview</p>
+                  {selectedReq.attachmentUrl ? (
+                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100">
+                      <iframe 
+                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
+                        className="w-full h-full border-none"
+                        title="Supporting Document"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-40 flex items-center justify-center">
+                      <p className="text-[9px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-6 py-2 rounded-full">No Attachment Available</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="border-t border-gray-100 pt-8">
