@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>BRICKS | Requisition Portal</title>
     
     <link rel="manifest" href="/manifest.json" />
@@ -15,6 +16,8 @@
     <meta name="apple-mobile-web-app-title" content="BRICKS" />
     <link rel="apple-touch-icon" href="/logo192.png" />
     
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -23,12 +26,26 @@
       body { 
         font-family: 'Inter', sans-serif; 
         margin: 0;
-        background-color: #f3f4f6; /* Light gray background */
-        /* Prevents "pull-to-refresh" on mobile which can annoy users during data entry */
+        background-color: #f3f4f6; 
+        /* Prevents pull-to-refresh on mobile */
         overscroll-behavior-y: contain; 
+        
+        /* SAFE AREA INSET: Ensures content is not hidden behind the iPhone notch
+           or the status bar when in 'standalone' mode.
+        */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
       }
       #root {
         min-height: 100vh;
+      }
+      
+      /* Smooth transitions for the app window */
+      html {
+        scroll-behavior: smooth;
+        -webkit-tap-highlight-color: transparent;
       }
     </style>
   </head>
@@ -40,16 +57,38 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // Pointing to /sw.js as per your service worker filename
+          // Registering the service worker as per your sw.js filename
           navigator.serviceWorker.register('/sw.js')
             .then(reg => {
               console.log('⚓ BRICKS PWA: Service Worker Registered');
+              
+              // Automatic update handling
+              reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                  if (installingWorker.state === 'installed') {
+                    if (navigator.serviceWorker.controller) {
+                      console.log('New content available; please refresh.');
+                    } else {
+                      console.log('Content is cached for offline use.');
+                    }
+                  }
+                };
+              };
             })
             .catch(err => {
               console.error('❌ BRICKS PWA: Registration Failed', err);
             });
         });
       }
+
+      // Logic to prevent links from opening in browser instead of the PWA
+      document.addEventListener('click', (e) => {
+        if (e.target.tagName === 'A' && e.target.getAttribute('target') !== '_blank') {
+          e.preventDefault();
+          window.location.href = e.target.href;
+        }
+      }, false);
     </script>
   </body>
 </html>
