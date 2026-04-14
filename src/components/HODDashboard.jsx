@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+// IMPORT YOUR NEW COMPONENT
+import AttachmentViewer from '../components/AttachmentViewer';
 
 const HODDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -292,7 +294,7 @@ const HODDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.paymentMode || 'N/A'}</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
                 </div>
               </div>
 
@@ -302,22 +304,12 @@ const HODDashboard = () => {
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
                 
-                {/* EMBEDDED DOCUMENT VIEWER */}
+                {/* UPDATED: INTEGRATED ATTACHMENT VIEWER COMPONENT */}
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
                   <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Supporting Documentation Preview</p>
-                  {selectedReq.attachmentUrl ? (
-                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100">
-                      <iframe 
-                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
-                        className="w-full h-full border-none"
-                        title="Supporting Document"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-40 flex items-center justify-center">
-                      <p className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-8 py-2 rounded-full border-2 border-dashed border-red-100">CRITICAL: NO ATTACHMENT PROVIDED</p>
-                    </div>
-                  )}
+                  <div className="w-full bg-white rounded-[2rem] p-4 min-h-[300px]">
+                    <AttachmentViewer url={selectedReq.attachmentUrl} />
+                  </div>
                 </div>
               </div>
 
