@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { getSecureUrl, revokeFileUrl } from '../utils/fileHandler';
+// IMPORT ATTACHMENT VIEWER
+import AttachmentViewer from '../components/AttachmentViewer';
 
 const FCDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -12,10 +13,6 @@ const FCDashboard = () => {
   const [activeTab, setActiveTab] = useState('queue'); 
   const [selectedReq, setSelectedReq] = useState(null); 
   const [fcComment, setFcComment] = useState('');
-  
-  // --- NEW STATES FOR SECURE VIEWING ---
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [isFetchingFile, setIsFetchingFile] = useState(false);
   
   const [showProfile, setShowProfile] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
@@ -59,22 +56,13 @@ const FCDashboard = () => {
     fetchData();
   }, [token, API_BASE_URL]);
 
-  // --- NEW: SECURE OPEN LOGIC ---
-  const handleOpenVetting = async (req) => {
+  // SIMPLIFIED OPEN LOGIC
+  const handleOpenVetting = (req) => {
     setSelectedReq(req);
     setFcComment('');
-    setIsFetchingFile(true);
-    
-    if (req.attachmentUrl) {
-      const secureUrl = await getSecureUrl(req.attachmentUrl, token);
-      setPreviewUrl(secureUrl);
-    }
-    setIsFetchingFile(false);
   };
 
   const handleCloseModal = () => {
-    if (previewUrl) revokeFileUrl(previewUrl);
-    setPreviewUrl(null);
     setSelectedReq(null);
   };
 
@@ -143,24 +131,6 @@ const FCDashboard = () => {
     } catch (err) {
       toast.error("Action failed", { id: loadingToast });
     }
-  };
-
-  const renderViewer = (url) => {
-    if (!url) return null;
-    const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(url) || url.startsWith('blob:');
-    
-    if (isImage) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-white p-4">
-          <img src={url} alt="Evidence" className="max-w-full max-h-full object-contain rounded-xl shadow-sm" />
-        </div>
-      );
-    }
-
-    const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
-    return (
-      <iframe src={googleViewerUrl} className="w-full h-full border-none" title="Document Viewer" key={url} />
-    );
   };
 
   if (loading) return (
@@ -314,24 +284,11 @@ const FCDashboard = () => {
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
                    <div className="flex justify-between items-center mb-2 mt-4 px-6">
                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Audit Evidence Preview</p>
-                     {selectedReq.attachmentUrl && (
-                        <a href={previewUrl || selectedReq.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-[8px] font-black text-[#A67C52] hover:underline">OPEN FULL ↗</a>
-                     )}
                    </div>
 
-                  <div className="w-full h-[450px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 shadow-sm relative flex items-center justify-center">
-                    {isFetchingFile ? (
-                      <div className="text-center">
-                        <div className="animate-spin h-6 w-6 border-2 border-[#A67C52] border-t-transparent rounded-full mx-auto mb-2"></div>
-                        <p className="text-[8px] font-black text-[#A67C52]">DECRYPTING EVIDENCE...</p>
-                      </div>
-                    ) : previewUrl ? (
-                      renderViewer(previewUrl)
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-[10px] font-black text-red-400 tracking-widest uppercase">NO ATTACHMENT PROVIDED</p>
-                      </div>
-                    )}
+                  <div className="w-full bg-white rounded-[2rem] p-4 min-h-[400px]">
+                    {/* INTEGRATED ATTACHMENT VIEWER COMPONENT */}
+                    <AttachmentViewer url={selectedReq.attachmentUrl} />
                   </div>
                 </div>
               </div>
