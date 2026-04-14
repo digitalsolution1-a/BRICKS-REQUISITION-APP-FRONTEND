@@ -83,7 +83,7 @@ const UserManagement = () => {
           >
             ← Back to Gateway
           </button>
-          <h1 className="text-[#A67C52] text-2xl font-black tracking-tighter italic">Crew <span className="text-black">Provisioning</span></h1>
+          <h1 className="text-[#A67C52] text-2xl font-black tracking-tighter italic">SUPER <span className="text-black">ADMIN DASHBOARD</span></h1>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
