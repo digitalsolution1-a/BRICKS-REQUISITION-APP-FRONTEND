@@ -88,7 +88,7 @@ const UserManagement = () => {
               ← BACK
             </button>
             <h1 className="text-[#A67C52] text-xl font-black tracking-tighter italic">
-              SUPER <span className="text-black">ADMIN PANEL</span>
+              A <span className="text-black">dmin</span>
             </h1>
           </div>
 
