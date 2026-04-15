@@ -4,7 +4,7 @@ export const HOD_EMAILS = [
   "omotayo.ayansina@brickslimited.com", "obiefuna.aguchime@brickslimited.com", 
   "jesse.nwaigwe@brickslimited.com", "crewing@brickslimited.com", 
   "mayowa.segun@brickslimited.com", "digital.solutions@brickslimited.com", 
-  "hauwa.garba@brickslimited.com", "jp.ino@brickslimited.com"
+  "hauwa.garba@brickslimited.com", "jp.inoo@brickslimited.com"
 ];
 
 export const CLIENTS = ["Chairborne", "ERDIS", "Hadnuvo", "SouthCoast", "OIS", "Penguin PTE", "Bruhat Logistics", "Sangfroid", "BA Ports", "ARC", "GreenSwift", "Others"];
