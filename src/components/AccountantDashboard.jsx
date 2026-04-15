@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-// --- NEW IMPORT ---
 import RequisitionHistory from '../components/RequisitionHistory';
+import AttachmentViewer from '../components/AttachmentViewer'; // Assuming this component exists
 
 const AccountantDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -11,16 +11,21 @@ const AccountantDashboard = () => {
   const [view, setView] = useState('queue'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedReq, setSelectedReq] = useState(null); // Track requisition for modal review
   
   const [showProfile, setShowProfile] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    Notification.permission === 'granted'
-  );
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // --- HELPER: GET MD DISBURSEMENT INSTRUCTIONS ---
+  const getMDInstructions = (historyArray) => {
+    if (!historyArray || !Array.isArray(historyArray)) return "Standard disbursement approved.";
+    const mdEntry = [...historyArray].reverse().find(h => h.actorRole === 'MD');
+    return mdEntry ? mdEntry.comment : "Standard disbursement approved.";
+  };
 
   const fetchData = async () => {
     try {
@@ -86,9 +91,6 @@ const AccountantDashboard = () => {
   };
 
   const handlePaymentComplete = async (id) => {
-    const confirmPayment = window.confirm("Confirm this requisition has been paid/disbursed?");
-    if (!confirmPayment) return;
-
     const loadingToast = toast.loading('Recording Disbursement...');
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
@@ -101,8 +103,8 @@ const AccountantDashboard = () => {
       });
 
       toast.success("TREASURY RECORD UPDATED", { id: loadingToast });
+      setSelectedReq(null); // Close modal
       fetchData(); // Refresh both lists
-      
     } catch (err) {
       toast.error("Update failed", { id: loadingToast });
     }
@@ -151,9 +153,8 @@ const AccountantDashboard = () => {
         </div>
       </nav>
 
-      {/* DROPDOWN */}
       {showProfile && (
-        <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6">
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded-2xl mx-auto mb-3 flex items-center justify-center text-xl font-black text-[#A67C52]">
               {user?.name?.substring(0,2).toUpperCase() || 'AC'}
@@ -161,7 +162,7 @@ const AccountantDashboard = () => {
             <h4 className="text-sm font-black text-gray-900 leading-none">{user?.name || 'Accountant'}</h4>
             <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">TREASURY ACCESS: ACTIVE</p>
           </div>
-          <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 transition-all uppercase tracking-widest">
+          <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
             End Session
           </button>
         </div>
@@ -194,72 +195,36 @@ const AccountantDashboard = () => {
         <div className="space-y-6">
           {view === 'queue' ? (
             <>
-              {filterList(requisitions).map(req => {
-                const mdApproval = req.approvalHistory?.find(h => h.actorRole === 'MD');
-                return (
-                  <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all animate-in fade-in slide-in-from-bottom-2">
-                    <div className="p-8 flex flex-col md:flex-row justify-between gap-8">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-4">
-                          <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">
-                            APPROVED BY MD
-                          </span>
-                          <span className="text-gray-300 font-bold text-[9px] tracking-widest">ID: #{req._id.slice(-6)}</span>
-                        </div>
-                        
-                        <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 mb-6">
-                          <div>
-                            <p className="text-[8px] font-black text-gray-400 uppercase">Staff</p>
-                            <p className="text-[10px] font-bold text-black">{req.requesterName}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black text-gray-400 uppercase">Due Date</p>
-                            <p className="text-[10px] font-bold text-red-600">{new Date(req.dueDate).toLocaleDateString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black text-gray-400 uppercase">Mode</p>
-                            <p className="text-[10px] font-bold text-black">{req.modeOfPayment}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black text-gray-400 uppercase">Dept</p>
-                            <p className="text-[10px] font-bold text-[#A67C52]">{req.department}</p>
-                          </div>
-                        </div>
-
-                        <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border-2 border-dashed border-gray-100 mb-4">
-                          <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-1 italic">Beneficiary Details:</p>
-                          <p className="text-xs font-bold text-gray-700 mb-4">{req.beneficiaryDetails}</p>
-                          <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-1 italic">Executive Instructions:</p>
-                          <p className="text-sm font-bold text-gray-700 italic">"{mdApproval?.comment || "Standard disbursement approved."}"</p>
-                        </div>
+              {filterList(requisitions).map(req => (
+                <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
+                  <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
+                        <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
                       </div>
-
-                      <div className="flex flex-col justify-between items-end md:w-72 p-8 rounded-[2rem] bg-gray-50">
-                        <div className="text-right w-full">
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Payable Amount</p>
-                          <p className="text-3xl font-black text-gray-900 leading-none tracking-tighter">{req.currency} {req.amount.toLocaleString()}</p>
-                        </div>
-                        
-                        <div className="w-full space-y-3 mt-8">
-                          {req.attachmentUrl && (
-                            <a href={req.attachmentUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center w-full py-3 bg-white border border-gray-200 rounded-xl text-[9px] font-black hover:bg-gray-100 transition-all tracking-widest">
-                              📎 VIEW INVOICE
-                            </a>
-                          )}
-                          <button 
-                            onClick={() => handlePaymentComplete(req._id)}
-                            className="w-full bg-black text-white py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#A67C52] transition-all shadow-xl active:scale-95"
-                          >
-                            CONFIRM DISBURSEMENT
-                          </button>
-                        </div>
+                      <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
+                      <div className="flex gap-6 mt-2">
+                         <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
+                         <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-8">
+                       <div className="text-right">
+                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Amount</p>
+                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount.toLocaleString()}</p>
+                       </div>
+                       <button 
+                        onClick={() => setSelectedReq(req)} 
+                        className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
+                       >
+                         PROCESS PAYMENT
+                       </button>
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
               {filterList(requisitions).length === 0 && (
                 <div className="py-32 text-center bg-white border-4 border-dashed border-gray-100 rounded-[3rem]">
                   <p className="text-gray-300 font-black uppercase tracking-[0.4em] text-xs underline decoration-[#A67C52] decoration-2 underline-offset-8">No Pending Disbursements</p>
@@ -267,11 +232,77 @@ const AccountantDashboard = () => {
               )}
             </>
           ) : (
-            // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
             <RequisitionHistory requisitions={filterList(history)} />
           )}
         </div>
       </main>
+
+      {/* DISBURSEMENT MODAL */}
+      {selectedReq && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
+              <div className="flex justify-between items-start mb-10">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">Confirm Disbursement</h3>
+                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Final Treasury Verification: #{selectedReq._id.slice(-6)}</p>
+                </div>
+                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
+              </div>
+
+              {/* EXECUTIVE INSTRUCTION HIGHLIGHT */}
+              <div className="bg-[#FBF9F6] border-2 border-[#A67C52] p-8 rounded-[2.5rem] mb-8 shadow-inner">
+                <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-2 italic">MD's Payment Instructions:</p>
+                <p className="text-lg font-black text-gray-800 italic leading-snug">
+                  "{getMDInstructions(selectedReq.approvalHistory)}"
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Beneficiary</p>
+                  <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
+                  <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
+                  <p className="text-[11px] font-black text-red-500">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
+                  <p className="text-[11px] font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6 mb-10 text-left">
+                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest italic">Narrative / Description</p>
+                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
+                </div>
+
+                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50">
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest p-4">Proof of Obligation / Invoice</p>
+                  <div className="w-full bg-white rounded-[2rem] p-4 min-h-[300px]">
+                    <AttachmentViewer url={selectedReq.attachmentUrl} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                 <button 
+                  onClick={() => handlePaymentComplete(selectedReq._id)} 
+                  className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-green-600 transition-all active:scale-95"
+                >
+                  CONFIRM DISBURSEMENT
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
