@@ -19,7 +19,6 @@ const UserManagement = () => {
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // Security Gate
   useEffect(() => {
     if (!token) {
       navigate('/');
@@ -34,11 +33,27 @@ const UserManagement = () => {
       const config = {
         headers: { Authorization: `Bearer ${token}` }
       };
+      
+      // LOG: Checking the full request URL
+      console.log(`Attempting to fetch manifest from: ${API_BASE_URL}/users`);
+      
       const res = await axios.get(`${API_BASE_URL}/users`, config);
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error("Fetch Users Error:", err);
-      toast.error("COULD NOT RETRIEVE USER MANIFEST");
+      // LOG: Detailed error for debugging
+      console.error("MANIFEST FETCH ERROR DETAILS:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+
+      if (err.response?.status === 403) {
+        toast.error("ADMIN ACCESS DENIED: CHECK YOUR ROLE");
+      } else if (err.response?.status === 404) {
+        toast.error("ROUTE NOT FOUND: CHECK BACKEND ENDPOINT");
+      } else {
+        toast.error("COULD NOT RETRIEVE USER MANIFEST");
+      }
     } finally {
       setLoading(false);
     }
@@ -63,12 +78,14 @@ const UserManagement = () => {
         headers: { Authorization: `Bearer ${token}` }
       };
 
+      // Ensure the endpoint matches your backend register logic
       await axios.post(`${API_BASE_URL}/users/register`, formData, config);
       
       toast.success("PERSONNEL PROVISIONED SUCCESSFULLY", { id: loadingToast });
       setFormData({ name: '', email: '', password: '', role: 'Staff', dept: 'Operations' });
       fetchUsers();
     } catch (err) {
+      console.error("PROVISIONING ERROR:", err.response?.data);
       const errorMsg = err.response?.data?.error || "ACCESS DENIED";
       toast.error(`PROVISIONING FAILED: ${errorMsg}`, { id: loadingToast });
     }
@@ -93,7 +110,6 @@ const UserManagement = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Alert Button */}
             <button 
               onClick={() => toast("SYSTEM STATUS: NOMINAL", { icon: '🛡️' })}
               className="p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-all relative group"
@@ -104,13 +120,12 @@ const UserManagement = () => {
               </svg>
             </button>
 
-            {/* Profile Link */}
             <button 
               onClick={() => navigate('/profile')}
               className="flex items-center gap-3 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all border border-transparent hover:border-gray-200"
             >
               <div className="text-right hidden sm:block">
-                <p className="text-[9px] font-black text-gray-800 leading-none">{user.name || 'ADMIN'}</p>
+                <p className="text-[9px] font-black text-gray-800">{user.name || 'ADMIN'}</p>
                 <p className="text-[8px] font-bold text-[#A67C52] tracking-widest">VIEW PROFILE</p>
               </div>
               <div className="w-8 h-8 bg-[#A67C52] rounded-lg flex items-center justify-center text-white font-black text-xs">
@@ -118,7 +133,6 @@ const UserManagement = () => {
               </div>
             </button>
 
-            {/* Logout Button */}
             <button 
               onClick={handleLogout}
               className="px-6 py-3 bg-black text-white text-[10px] font-black tracking-[0.2em] rounded-xl hover:bg-red-600 transition-all active:scale-95 shadow-lg shadow-black/10"
@@ -133,7 +147,7 @@ const UserManagement = () => {
           {/* Create User Form */}
           <div className="lg:col-span-1">
             <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-gray-100">
-              <h2 className="text-gray-800 font-black text-sm tracking-widest mb-6 border-b border-gray-50 pb-4 italic">Add New Personnel</h2>
+              <h2 className="text-gray-800 font-black text-sm tracking-widest mb-6 border-b border-gray-50 pb-4 italic text-left">Add New Personnel</h2>
               <form onSubmit={handleCreateUser} className="space-y-4 text-left">
                 <div>
                   <label className="text-[10px] font-black text-gray-400 ml-1">Full Name</label>
@@ -163,12 +177,12 @@ const UserManagement = () => {
                   <div>
                     <label className="text-[10px] font-black text-gray-400 ml-1">Role</label>
                     <select name="role" value={formData.role} onChange={handleInputChange} className="w-full mt-1 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold cursor-pointer outline-none">
-                      <option value="Staff">Staff</option>
+                      <option value="Staff">STAFF</option>
                       <option value="HOD">HOD</option>
                       <option value="FC">FC</option>
                       <option value="MD">MD</option>
                       <option value="ACCOUNTS">ACCOUNTS</option>
-                      <option value="Admin">Admin (Super)</option>
+                      <option value="ADMIN">ADMIN</option>
                     </select>
                   </div>
                   <div>
@@ -190,7 +204,7 @@ const UserManagement = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
               <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                <h2 className="text-gray-800 font-black text-sm tracking-widest">Active Accounts</h2>
+                <h2 className="text-gray-800 font-black text-sm tracking-widest uppercase">Active Accounts</h2>
                 <span className="bg-orange-50 text-[#A67C52] text-[10px] font-black px-3 py-1 rounded-full">{users.length} Records</span>
               </div>
               <div className="overflow-x-auto">
@@ -207,7 +221,7 @@ const UserManagement = () => {
                     {loading ? (
                        <tr><td colSpan="4" className="p-20 text-center animate-pulse font-black text-gray-300 text-xs">Fetching Manifest...</td></tr>
                     ) : users.length === 0 ? (
-                       <tr><td colSpan="4" className="p-20 text-center font-black text-gray-300 text-xs">No users found</td></tr>
+                       <tr><td colSpan="4" className="p-20 text-center font-black text-gray-300 text-xs uppercase">No users found in database</td></tr>
                     ) : users.map((u) => (
                       <tr key={u._id} className="hover:bg-orange-50/10 transition-colors group">
                         <td className="p-6">
@@ -216,7 +230,7 @@ const UserManagement = () => {
                         </td>
                         <td className="p-6">
                           <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
-                            u.role === 'Admin' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-[#A67C52]'
+                            u.role === 'ADMIN' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-[#A67C52]'
                           }`}>
                             {u.role}
                           </span>
@@ -224,8 +238,8 @@ const UserManagement = () => {
                         <td className="p-6 text-[10px] font-black text-gray-500 tracking-tight">{u.dept}</td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-                            <span className="text-[10px] font-black text-gray-400">Verified</span>
+                            <span className="h-2 w-2 bg-green-500 rounded-full"></span>
+                            <span className="text-[10px] font-black text-gray-400">ACTIVE</span>
                           </div>
                         </td>
                       </tr>
