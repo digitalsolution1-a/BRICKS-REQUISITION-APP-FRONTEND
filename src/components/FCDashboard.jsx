@@ -3,7 +3,6 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AttachmentViewer from '../components/AttachmentViewer';
-// --- NEW IMPORT ---
 import RequisitionHistory from '../components/RequisitionHistory';
 
 const FCDashboard = () => {
@@ -24,6 +23,14 @@ const FCDashboard = () => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // --- HELPER TO EXTRACT HOD COMMENT FROM HISTORY ---
+  const getHODComment = (historyArray) => {
+    if (!historyArray || !Array.isArray(historyArray)) return null;
+    // Find the entry made by the HOD role
+    const hodEntry = [...historyArray].find(entry => entry.actorRole === 'HOD');
+    return hodEntry ? hodEntry.comment : null;
+  };
 
   const fetchData = async () => {
     if (!token) return navigate('/');
@@ -219,8 +226,6 @@ const FCDashboard = () => {
               )}
             </>
           ) : (
-            // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
-            // FC sees global history (all departments)
             <RequisitionHistory requisitions={filterList(history)} />
           )}
         </div>
@@ -263,6 +268,16 @@ const FCDashboard = () => {
                   <p className="text-[11px] font-bold text-gray-700 mb-3">{selectedReq.beneficiaryDetails}</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
+
+                {/* --- NEW: HOD COMMENT SECTION --- */}
+                {getHODComment(selectedReq.approvalHistory) && (
+                  <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-3xl border border-green-100">
+                    <p className="text-[9px] font-black text-green-600 mb-2 uppercase tracking-[0.2em]">HOD Approval Remarks</p>
+                    <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
+                      "{getHODComment(selectedReq.approvalHistory)}"
+                    </p>
+                  </div>
+                )}
 
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
                    <div className="flex justify-between items-center mb-2 mt-4 px-6">
