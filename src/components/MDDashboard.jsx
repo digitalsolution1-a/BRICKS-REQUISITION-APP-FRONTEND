@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-// --- NEW IMPORT ---
 import RequisitionHistory from '../components/RequisitionHistory';
 
 const MDDashboard = () => {
@@ -24,6 +23,14 @@ const MDDashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // --- HELPER TO EXTRACT FC COMMENT FROM HISTORY ---
+  const getFCComment = (historyArray) => {
+    if (!historyArray || !Array.isArray(historyArray)) return null;
+    // Find the last entry made by the FC role
+    const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC');
+    return fcEntry ? fcEntry.comment : null;
+  };
 
   const fetchData = async () => {
     if (!token) return navigate('/');
@@ -150,7 +157,6 @@ const MDDashboard = () => {
         </div>
       </nav>
 
-      {/* PROFILE DROPDOWN */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -230,12 +236,10 @@ const MDDashboard = () => {
             </section>
           </div>
         ) : (
-          // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
           <RequisitionHistory requisitions={filterList(history)} />
         )}
       </main>
 
-      {/* ACTION MODAL */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -275,15 +279,16 @@ const MDDashboard = () => {
                 <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
-                    "{selectedReq.description || 'No description provided.'}"
+                    "{selectedReq.requestNarrative || 'No description provided.'}"
                   </p>
                 </div>
 
-                {selectedReq.fcComment && (
+                {/* --- EXTRACTED FC COMMENT DISPLAY --- */}
+                {getFCComment(selectedReq.approvalHistory) && (
                   <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
                     <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
                     <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
-                      "{selectedReq.fcComment}"
+                      "{getFCComment(selectedReq.approvalHistory)}"
                     </p>
                   </div>
                 )}
