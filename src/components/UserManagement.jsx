@@ -17,7 +17,9 @@ const UserManagement = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // SANITIZE BASE URL: Removes trailing slash if it exists to prevent //users
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 
   useEffect(() => {
     if (!token) {
@@ -34,23 +36,23 @@ const UserManagement = () => {
         headers: { Authorization: `Bearer ${token}` }
       };
       
-      // LOG: Checking the full request URL
-      console.log(`Attempting to fetch manifest from: ${API_BASE_URL}/users`);
+      // LOG: Checking the full request URL in the console
+      const requestPath = `${API_BASE_URL}/users`;
+      console.log(`📡 Attempting to fetch manifest from: ${requestPath}`);
       
-      const res = await axios.get(`${API_BASE_URL}/users`, config);
+      const res = await axios.get(requestPath, config);
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      // LOG: Detailed error for debugging
-      console.error("MANIFEST FETCH ERROR DETAILS:", {
+      console.error("❌ MANIFEST FETCH ERROR DETAILS:", {
         status: err.response?.status,
-        data: err.response?.data,
+        url: err.config?.url,
         message: err.message
       });
 
       if (err.response?.status === 403) {
         toast.error("ADMIN ACCESS DENIED: CHECK YOUR ROLE");
       } else if (err.response?.status === 404) {
-        toast.error("ROUTE NOT FOUND: CHECK BACKEND ENDPOINT");
+        toast.error(`ROUTE NOT FOUND: CHECK ENDPOINT ${API_BASE_URL}/users`);
       } else {
         toast.error("COULD NOT RETRIEVE USER MANIFEST");
       }
@@ -78,8 +80,10 @@ const UserManagement = () => {
         headers: { Authorization: `Bearer ${token}` }
       };
 
-      // Ensure the endpoint matches your backend register logic
-      await axios.post(`${API_BASE_URL}/users/register`, formData, config);
+      const requestPath = `${API_BASE_URL}/users/register`;
+      console.log(`🚀 Provisioning at: ${requestPath}`);
+
+      await axios.post(requestPath, formData, config);
       
       toast.success("PERSONNEL PROVISIONED SUCCESSFULLY", { id: loadingToast });
       setFormData({ name: '', email: '', password: '', role: 'Staff', dept: 'Operations' });
@@ -230,7 +234,7 @@ const UserManagement = () => {
                         </td>
                         <td className="p-6">
                           <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
-                            u.role === 'ADMIN' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-[#A67C52]'
+                            u.role?.toUpperCase() === 'ADMIN' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-[#A67C52]'
                           }`}>
                             {u.role}
                           </span>
