@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-// IMPORT ATTACHMENT VIEWER
 import AttachmentViewer from '../components/AttachmentViewer';
+// --- NEW IMPORT ---
+import RequisitionHistory from '../components/RequisitionHistory';
 
 const FCDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -56,7 +57,6 @@ const FCDashboard = () => {
     fetchData();
   }, [token, API_BASE_URL]);
 
-  // SIMPLIFIED OPEN LOGIC
   const handleOpenVetting = (req) => {
     setSelectedReq(req);
     setFcComment('');
@@ -192,60 +192,43 @@ const FCDashboard = () => {
 
         <div className="grid gap-4">
           {activeTab === 'queue' ? (
-            filterList(requisitions).map(req => (
-              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-6 flex-1">
-                  <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
-                    <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
-                    <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">HOD Approved</span>
-                      <span className="text-gray-400 font-bold text-[9px] tracking-widest">{req.department}</span>
+            <>
+              {filterList(requisitions).map(req => (
+                <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
+                      <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
+                      <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
                     </div>
-                    <h3 className="text-xl font-black text-gray-900 leading-none tracking-tight">{req.requesterName}</h3>
-                    <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase italic">Vendor: {req.vendorName || "General"}</p>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">HOD Approved</span>
+                        <span className="text-gray-400 font-bold text-[9px] tracking-widest">{req.department}</span>
+                      </div>
+                      <h3 className="text-xl font-black text-gray-900 leading-none tracking-tight">{req.requesterName}</h3>
+                      <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase italic">Vendor: {req.vendorName || "General"}</p>
+                    </div>
                   </div>
+                  <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">VET REQUEST</button>
                 </div>
-                <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">VET REQUEST</button>
-              </div>
-            ))
+              ))}
+              {filterList(requisitions).length === 0 && (
+                <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
+                  <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase underline decoration-[#A67C52] decoration-2 underline-offset-8">No records currently pending</p>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">DATE</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">STAFF/DEPT</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest text-center">STATUS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filterList(history).map(req => (
-                    <tr key={req._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="p-6 text-[10px] font-bold text-gray-500">{new Date(req.updatedAt).toLocaleDateString()}</td>
-                      <td className="p-6">
-                        <p className="text-[10px] font-black text-gray-900 leading-none mb-1">{req.requesterName} ({req.department})</p>
-                        <p className="text-[11px] font-black text-[#A67C52]">{req.currency} {req.amount?.toLocaleString()}</p>
-                      </td>
-                      <td className="p-6 text-center">
-                        <span className={`text-[8px] font-black px-3 py-1 rounded-full ${['Approved', 'Paid'].includes(req.status) ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                          {req.status === 'Paid' ? 'DISBURSED' : req.status === 'Approved' ? 'FORWARDED' : 'DECLINED'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
+            // FC sees global history (all departments)
+            <RequisitionHistory requisitions={filterList(history)} />
           )}
         </div>
       </main>
 
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
@@ -287,7 +270,6 @@ const FCDashboard = () => {
                    </div>
 
                   <div className="w-full bg-white rounded-[2rem] p-4 min-h-[400px]">
-                    {/* INTEGRATED ATTACHMENT VIEWER COMPONENT */}
                     <AttachmentViewer url={selectedReq.attachmentUrl} />
                   </div>
                 </div>
