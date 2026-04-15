@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-// IMPORT YOUR NEW COMPONENT
 import AttachmentViewer from '../components/AttachmentViewer';
+// --- NEW IMPORT ---
+import RequisitionHistory from '../components/RequisitionHistory';
 
 const HODDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -209,59 +210,36 @@ const HODDashboard = () => {
 
         <div className="grid gap-4">
           {activeTab === 'queue' ? (
-            filterList(requisitions).map(req => (
-              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-6 flex-1">
-                  <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
-                    <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
-                    <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
+            <>
+              {filterList(requisitions).map(req => (
+                <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
+                      <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
+                      <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
-                  </div>
+                  <button onClick={() => setSelectedReq(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
+                    REVIEW REQUEST
+                  </button>
                 </div>
-                <button onClick={() => setSelectedReq(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
-                  REVIEW REQUEST
-                </button>
-              </div>
-            ))
+              ))}
+              {filterList(requisitions).length === 0 && (
+                <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
+                  <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase underline decoration-[#A67C52] decoration-2 underline-offset-8">No records currently pending</p>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">DATE</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">STAFF</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">VALUE</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest text-right">OUTCOME</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filterList(history).map(req => (
-                    <tr key={req._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="p-6 text-[10px] font-bold text-gray-500">{new Date(req.updatedAt).toLocaleDateString()}</td>
-                      <td className="p-6">
-                        <p className="text-[10px] font-black text-gray-900 leading-none mb-1 uppercase">{req.requesterName}</p>
-                        <p className="text-[8px] font-bold text-gray-400 uppercase">{req.vendorName || 'General'}</p>
-                      </td>
-                      <td className="p-6 text-[11px] font-black text-[#A67C52]">{req.currency} {req.amount?.toLocaleString()}</td>
-                      <td className="p-6 text-right">
-                        <span className={`text-[8px] font-black px-3 py-1 rounded-full ${req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                          {req.status === 'Approved' ? 'PASSED TO FINANCE' : req.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {filterList(activeTab === 'queue' ? requisitions : history).length === 0 && (
-            <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
-              <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase underline decoration-[#A67C52] decoration-2 underline-offset-8">No records currently pending</p>
-            </div>
+            // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
+            // Filters based on the HOD's department for privacy
+            <RequisitionHistory 
+              requisitions={filterList(history).filter(req => req.dept === user.dept || req.department === user.dept)} 
+            />
           )}
         </div>
       </main>
@@ -304,7 +282,6 @@ const HODDashboard = () => {
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
                 
-                {/* UPDATED: INTEGRATED ATTACHMENT VIEWER COMPONENT */}
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
                   <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Supporting Documentation Preview</p>
                   <div className="w-full bg-white rounded-[2rem] p-4 min-h-[300px]">
