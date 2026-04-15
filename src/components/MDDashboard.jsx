@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+// --- NEW IMPORT ---
+import RequisitionHistory from '../components/RequisitionHistory';
 
 const MDDashboard = () => {
   const [inbox, setInbox] = useState([]);
@@ -24,10 +26,7 @@ const MDDashboard = () => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const fetchData = async () => {
-    if (!token || !user.email) {
-      navigate('/');
-      return;
-    }
+    if (!token) return navigate('/');
 
     try {
       setLoading(true);
@@ -37,7 +36,7 @@ const MDDashboard = () => {
         }),
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, { 
           headers: { Authorization: `Bearer ${token}` } 
-        }),
+        }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/requisitions/history/MD`, { 
           headers: { Authorization: `Bearer ${token}` } 
         }).catch(() => ({ data: [] }))
@@ -106,7 +105,7 @@ const MDDashboard = () => {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
         actorRole: 'MD',
-        actorName: user.name || 'Emmanuel Maiguwa',
+        actorName: user.name || 'MD Office',
         comment: mdComment || (action === 'Approved' ? 'Final authorization granted.' : ''),
         isOverride
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -197,7 +196,7 @@ const MDDashboard = () => {
                 <span className="bg-[#A67C52] text-white text-[8px] font-black px-2 py-0.5 rounded-full">{inbox.length}</span>
               </div>
               {filterList(inbox).map(req => (
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all">
+                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-left-2">
                   <div>
                     <p className="text-[8px] font-black text-gray-400 mb-1">{req.department}</p>
                     <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
@@ -231,38 +230,8 @@ const MDDashboard = () => {
             </section>
           </div>
         ) : (
-          <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">DATE</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">RECIPIENT</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest">VALUE</th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 tracking-widest text-center">OUTCOME</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filterList(history).map(req => (
-                    <tr key={req._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="p-6 text-[10px] font-bold text-gray-500">{new Date(req.updatedAt).toLocaleDateString()}</td>
-                      <td className="p-6">
-                        <p className="text-[10px] font-black text-gray-800 uppercase">{req.requesterName}</p>
-                        <p className="text-[8px] font-bold text-gray-400">{req.department}</p>
-                      </td>
-                      <td className="p-6 text-[11px] font-black text-[#A67C52]">{req.currency} {req.amount?.toLocaleString()}</td>
-                      <td className="p-6 text-center">
-                        <span className={`text-[8px] font-black px-4 py-1.5 rounded-full inline-block ${req.status === 'Approved' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                          {req.status === 'Approved' ? 'AUTHORIZED' : 'DECLINED'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {history.length === 0 && <div className="text-center py-20 text-gray-300 text-[10px] font-black tracking-widest">NO RECORDS</div>}
-            </div>
-          </div>
+          // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
+          <RequisitionHistory requisitions={filterList(history)} />
         )}
       </main>
 
@@ -283,7 +252,6 @@ const MDDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
 
-              {/* STATS STRIP */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
@@ -298,35 +266,32 @@ const MDDashboard = () => {
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date / Mode</p>
                   <p className="text-[11px] font-black text-gray-800 uppercase">
-                    {new Date(selectedReq.dueDate).toLocaleDateString()} — {selectedReq.paymentMode}
+                    {new Date(selectedReq.dueDate).toLocaleDateString()} — {selectedReq.modeOfPayment}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-6 mb-10">
-                {/* NARRATIVE */}
                 <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
-                    "{selectedReq.requestNarrative || selectedReq.description || 'No description provided.'}"
+                    "{selectedReq.description || 'No description provided.'}"
                   </p>
                 </div>
 
-                {/* FC COMMENT */}
-                {(selectedReq.fcComment || (selectedReq.approvals && selectedReq.approvals.find(a => a.role === 'FC')?.comment)) && (
+                {selectedReq.fcComment && (
                   <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
                     <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
                     <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
-                      "{selectedReq.fcComment || selectedReq.approvals.find(a => a.role === 'FC').comment}"
+                      "{selectedReq.fcComment}"
                     </p>
                   </div>
                 )}
 
-                {/* EMBEDDED DOCUMENT VIEWER */}
-                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
-                  <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Supporting Documentation Preview</p>
+                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-4 bg-gray-50 overflow-hidden">
+                  <p className="text-[9px] font-black text-gray-400 mb-4 ml-2 uppercase tracking-widest">Supporting Documentation Preview</p>
                   {selectedReq.attachmentUrl ? (
-                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100">
+                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 relative">
                       <iframe 
                         src={`${selectedReq.attachmentUrl}#toolbar=0`} 
                         className="w-full h-full border-none"
