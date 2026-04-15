@@ -18,7 +18,7 @@ const UserManagement = () => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user')) || {};
 
-  // Clean the base URL to prevent double slashes
+  // BASE URL cleanup: ensure no trailing slash
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
 
   useEffect(() => {
@@ -32,33 +32,20 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const config = {
-        headers: { Authorization: `Bearer ${token}` }
-      };
+      const config = { headers: { Authorization: `Bearer ${token}` } };
       
-      /** * BASED ON YOUR index.js:
-       * Your backend listens at /api/users. 
-       * If your routes/user.js uses router.get('/', ...), use `${API_BASE_URL}/users`
-       * If your routes/user.js uses router.get('/manifest', ...), update the string below.
+      /** * ENDPOINT LOGIC:
+       * backend/index.js mounts User routes at /api/users
+       * backend/routes/user.js defines GET at /
        */
       const requestPath = `${API_BASE_URL}/users`; 
       
-      console.log(`📡 BRICKS SYSTEM: Syncing manifest from ${requestPath}`);
-      
       const res = await axios.get(requestPath, config);
-      // Ensure we handle both array responses and object responses containing arrays
-      const userData = Array.isArray(res.data) ? res.data : res.data.users || [];
-      setUsers(userData);
+      setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error("❌ MANIFEST SYNC ERROR:", err.response);
-      
-      if (err.response?.status === 404) {
-        toast.error(`ROUTE NOT FOUND: ${err.config.url}`);
-      } else if (err.response?.status === 403) {
-        toast.error("ADMIN PRIVILEGES REQUIRED");
-      } else {
-        toast.error("OFFLINE: COULD NOT REACH DATABASE");
-      }
+      console.error("SYNC ERROR:", err.response);
+      const msg = err.response?.status === 403 ? "ADMIN ACCESS REQUIRED" : "FAILED TO FETCH PERSONNEL";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -66,25 +53,39 @@ const UserManagement = () => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    const loadingToast = toast.loading("PROVISIONING NEW PERSONNEL...");
+    const loadingToast = toast.loading("PROVISIONING NEW ACCOUNT...");
     
     try {
-      const config = {
-        headers: { Authorization: `Bearer ${token}` }
-      };
-
-      // We use the /api/users path as registered in your index.js
-      const requestPath = `${API_BASE_URL}/users/register`;
-      await axios.post(requestPath, formData, config);
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      // Path based on router.post('/register') in your user routes
+      await axios.post(`${API_BASE_URL}/users/register`, formData, config);
       
-      toast.success("ACCOUNT DEPLOYED TO MANIFEST", { id: loadingToast });
+      toast.success("PERSONNEL ADDED SUCCESSFULLY", { id: loadingToast });
       setFormData({ name: '', email: '', password: '', role: 'Staff', dept: 'Operations' });
       fetchUsers();
     } catch (err) {
-      console.error("PROVISIONING ERROR:", err.response?.data);
-      const errorMsg = err.response?.data?.error || "CLEARANCE DENIED";
-      toast.error(`DEPLOYMENT FAILED: ${errorMsg}`, { id: loadingToast });
+      const errorMsg = err.response?.data?.error || "PROVISIONING FAILED";
+      toast.error(errorMsg, { id: loadingToast });
     }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm("CONFIRM: DECOMMISSION THIS ACCOUNT?")) return;
+    const deleteToast = toast.loading("REMOVING FROM MANIFEST...");
+    
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      // Path based on router.delete('/:id') in your user routes
+      await axios.delete(`${API_BASE_URL}/users/${id}`, config);
+      toast.success("ACCOUNT REMOVED", { id: deleteToast });
+      fetchUsers();
+    } catch (err) {
+      toast.error("DELETION FAILED", { id: deleteToast });
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleLogout = () => {
@@ -93,91 +94,79 @@ const UserManagement = () => {
     navigate('/');
   };
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
   return (
     <div className="min-h-screen bg-[#f4f7f9] p-4 lg:p-12 uppercase">
       <div className="max-w-7xl mx-auto">
         
-        {/* --- DYNAMIC HEADER --- */}
+        {/* --- HEADER NAVIGATION --- */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6 bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => navigate(-1)}
-              className="text-[10px] font-black text-gray-400 hover:text-[#A67C52] tracking-widest flex items-center gap-2 transition-colors"
+              onClick={() => navigate(-1)} 
+              className="text-[10px] font-black text-gray-400 hover:text-[#A67C52] tracking-widest transition-colors"
             >
               ← BACK
             </button>
-            <h1 className="text-[#A67C52] text-xl font-black tracking-tighter italic">
-              A <span className="text-black">dmin</span>
+            <h1 className="text-[#A67C52] text-xl font-black italic">
+              A<span className="text-black">dmin</span>
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-xl border border-green-100">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              <span className="text-[10px] font-black text-green-700 tracking-widest">SYSTEM: NOMINAL</span>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block text-right">
+              <p className="text-[10px] font-black text-gray-800">{user.name || 'AUTHORIZED USER'}</p>
+              <p className="text-[8px] text-[#A67C52] font-bold tracking-widest">SYSTEM ADMINISTRATOR</p>
             </div>
-
             <button 
-              onClick={() => navigate('/profile')}
-              className="flex items-center gap-3 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all border border-transparent"
-            >
-              <div className="text-right hidden sm:block">
-                <p className="text-[9px] font-black text-gray-800">{user.name || 'AUTHORIZED ADMIN'}</p>
-                <p className="text-[8px] font-bold text-[#A67C52] tracking-widest">PROFILE SETTINGS</p>
-              </div>
-              <div className="w-8 h-8 bg-[#A67C52] rounded-lg flex items-center justify-center text-white font-black text-xs">
-                {user.name?.charAt(0) || 'A'}
-              </div>
-            </button>
-
-            <button 
-              onClick={handleLogout}
-              className="px-6 py-3 bg-black text-white text-[10px] font-black tracking-[0.2em] rounded-xl hover:bg-red-600 transition-all active:scale-95 shadow-lg shadow-black/10"
+              onClick={handleLogout} 
+              className="px-6 py-3 bg-black text-white text-[10px] font-black rounded-xl hover:bg-red-600 transition-all active:scale-95 shadow-lg shadow-black/5"
             >
               LOGOUT
             </button>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-8 text-left">
           
-          {/* Create User Form */}
+          {/* --- PROVISIONING FORM --- */}
           <div className="lg:col-span-1">
-            <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-gray-100">
-              <h2 className="text-gray-800 font-black text-sm tracking-widest mb-6 border-b border-gray-50 pb-4 italic text-left">Account Provisioning</h2>
-              <form onSubmit={handleCreateUser} className="space-y-4 text-left">
+            <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-gray-100 sticky top-8">
+              <h2 className="text-gray-800 font-black text-xs tracking-widest mb-6 border-b border-gray-50 pb-4 italic">
+                Personnel Provisioning
+              </h2>
+              <form onSubmit={handleCreateUser} className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 ml-1">Legal Name</label>
+                  <label className="text-[9px] font-black text-gray-400 ml-1">Full Legal Name</label>
                   <input 
-                    name="name" value={formData.name} onChange={handleInputChange} required
-                    placeholder="FULL NAME"
-                    className="w-full mt-1 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#A67C52] transition-all"
+                    name="name" value={formData.name} onChange={handleInputChange} 
+                    placeholder="ENTER NAME" required
+                    className="w-full mt-1 p-4 bg-gray-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#A67C52] transition-all" 
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 ml-1">Work Email</label>
+                  <label className="text-[9px] font-black text-gray-400 ml-1">Corporate Email</label>
                   <input 
-                    name="email" type="email" value={formData.email} onChange={handleInputChange} required
-                    placeholder="EMAIL@BRICKS.COM"
-                    className="w-full mt-1 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#A67C52] transition-all"
+                    name="email" type="email" value={formData.email} onChange={handleInputChange} 
+                    placeholder="EMAIL@BRICKS.COM" required
+                    className="w-full mt-1 p-4 bg-gray-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#A67C52] transition-all" 
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 ml-1">Initial Password</label>
+                  <label className="text-[9px] font-black text-gray-400 ml-1">Temporary Password</label>
                   <input 
-                    name="password" type="password" value={formData.password} onChange={handleInputChange} required
-                    placeholder="••••••••"
-                    className="w-full mt-1 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#A67C52] transition-all"
+                    name="password" type="password" value={formData.password} onChange={handleInputChange} 
+                    placeholder="••••••••" required
+                    className="w-full mt-1 p-4 bg-gray-50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#A67C52] transition-all" 
                   />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 ml-1">Clearance</label>
-                    <select name="role" value={formData.role} onChange={handleInputChange} className="w-full mt-1 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold cursor-pointer outline-none">
+                    <label className="text-[9px] font-black text-gray-400 ml-1">Access Level</label>
+                    <select 
+                      name="role" value={formData.role} onChange={handleInputChange} 
+                      className="w-full mt-1 p-4 bg-gray-50 rounded-2xl text-[10px] font-black cursor-pointer"
+                    >
                       <option value="Staff">STAFF</option>
                       <option value="HOD">HOD</option>
                       <option value="FC">FC</option>
@@ -187,61 +176,81 @@ const UserManagement = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 ml-1">Dept</label>
+                    <label className="text-[9px] font-black text-gray-400 ml-1">Department</label>
                     <input 
-                      name="dept" value={formData.dept} onChange={handleInputChange}
-                      className="w-full mt-1 p-4 bg-gray-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#A67C52]"
+                      name="dept" value={formData.dept} onChange={handleInputChange} 
+                      placeholder="DEPT"
+                      className="w-full mt-1 p-4 bg-gray-50 rounded-2xl text-[10px] font-black outline-none focus:ring-2 focus:ring-[#A67C52]" 
                     />
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-[#A67C52] text-white font-black text-[10px] py-5 rounded-2xl shadow-xl hover:bg-black transition-all active:scale-95 tracking-widest mt-4">
-                  AUTHORIZE ACCOUNT
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-[#A67C52] text-white font-black text-[10px] py-5 rounded-2xl hover:bg-black transition-all active:scale-95 tracking-[0.2em] shadow-lg shadow-[#A67C52]/20 mt-4"
+                >
+                  DEPLOY ACCOUNT
                 </button>
               </form>
             </div>
           </div>
 
-          {/* User List Table */}
+          {/* --- PERSONNEL TABLE --- */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden">
-              <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                <h2 className="text-gray-800 font-black text-sm tracking-widest uppercase italic">Personnel Manifest</h2>
-                <span className="bg-orange-50 text-[#A67C52] text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-tighter">{users.length} SECURE RECORDS</span>
+              <div className="p-8 border-b border-gray-50 bg-gray-50/30 flex justify-between items-center">
+                <h2 className="font-black text-xs tracking-widest text-gray-800">ACTIVE PERSONNEL MANIFEST</h2>
+                <span className="text-[10px] font-black text-[#A67C52] bg-orange-50 px-4 py-1 rounded-full border border-orange-100">
+                  {users.length} TOTAL RECORDS
+                </span>
               </div>
+              
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50/80 text-[9px] font-black text-gray-400 tracking-[0.2em]">
+                <table className="w-full">
+                  <thead className="bg-gray-50/50 text-[9px] font-black text-gray-400 tracking-widest">
                     <tr>
-                      <th className="p-6">Personnel</th>
-                      <th className="p-6">Role</th>
-                      <th className="p-6">Department</th>
-                      <th className="p-6 text-right">Status</th>
+                      <th className="p-6">IDENTITY / CONTACT</th>
+                      <th className="p-6">CLEARANCE</th>
+                      <th className="p-6">DEPT</th>
+                      <th className="p-6 text-right">OPERATIONS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {loading ? (
-                       <tr><td colSpan="4" className="p-20 text-center animate-pulse font-black text-gray-300 text-xs italic tracking-widest">QUERYING BRICKS DATABASE...</td></tr>
+                      <tr>
+                        <td colSpan="4" className="p-20 text-center font-black text-gray-300 animate-pulse italic tracking-widest">
+                          SYNCING WITH BRICKS CLUSTER...
+                        </td>
+                      </tr>
                     ) : users.length === 0 ? (
-                       <tr><td colSpan="4" className="p-20 text-center font-black text-gray-300 text-xs uppercase">No active records found in current manifest</td></tr>
+                      <tr>
+                        <td colSpan="4" className="p-20 text-center font-black text-gray-300 italic">
+                          NO ACTIVE RECORDS DETECTED
+                        </td>
+                      </tr>
                     ) : users.map((u) => (
-                      <tr key={u._id} className="hover:bg-orange-50/10 transition-colors group">
+                      <tr key={u._id} className="hover:bg-orange-50/5 transition-colors group">
                         <td className="p-6">
-                          <p className="font-black text-gray-800 text-sm">{u.name}</p>
-                          <p className="text-[10px] text-gray-400 lowercase italic">{u.email}</p>
+                          <p className="font-black text-sm text-gray-800">{u.name}</p>
+                          <p className="text-[10px] text-gray-400 lowercase italic tracking-tight">{u.email}</p>
                         </td>
                         <td className="p-6">
-                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
-                            u.role?.toUpperCase() === 'ADMIN' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-[#A67C52]'
+                          <span className={`text-[9px] font-black px-3 py-1 rounded-lg tracking-widest ${
+                            u.role?.toUpperCase() === 'ADMIN' 
+                            ? 'bg-purple-100 text-purple-600' 
+                            : 'bg-orange-100 text-[#A67C52]'
                           }`}>
                             {u.role}
                           </span>
                         </td>
-                        <td className="p-6 text-[10px] font-black text-gray-500 tracking-tight">{u.dept}</td>
+                        <td className="p-6 text-[10px] font-black text-gray-500">{u.dept}</td>
                         <td className="p-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="h-2 w-2 bg-green-500 rounded-full"></span>
-                            <span className="text-[10px] font-black text-gray-400">ACTIVE</span>
-                          </div>
+                          <button 
+                            onClick={() => handleDeleteUser(u._id)} 
+                            className="text-[9px] font-black text-gray-300 hover:text-red-600 hover:scale-110 transition-all"
+                          >
+                            DECOMMISSION
+                          </button>
                         </td>
                       </tr>
                     ))}
