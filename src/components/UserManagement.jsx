@@ -18,8 +18,9 @@ const UserManagement = () => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user')) || {};
 
-  // BASE URL cleanup: ensure no trailing slash
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  // BASE URL cleanup: ensure no trailing slash and consistent /api prefix
+  const rawBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  const API_BASE_URL = rawBaseUrl?.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl}/api`;
 
   useEffect(() => {
     if (!token) {
@@ -34,10 +35,7 @@ const UserManagement = () => {
       setLoading(true);
       const config = { headers: { Authorization: `Bearer ${token}` } };
       
-      /** * ENDPOINT LOGIC:
-       * backend/index.js mounts User routes at /api/users
-       * backend/routes/user.js defines GET at /
-       */
+      // Standardized path: ensures we hit /api/users
       const requestPath = `${API_BASE_URL}/users`; 
       
       const res = await axios.get(requestPath, config);
@@ -57,7 +55,7 @@ const UserManagement = () => {
     
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      // Path based on router.post('/register') in your user routes
+      // Standardized path: ensures we hit /api/users/register
       await axios.post(`${API_BASE_URL}/users/register`, formData, config);
       
       toast.success("PERSONNEL ADDED SUCCESSFULLY", { id: loadingToast });
@@ -75,7 +73,7 @@ const UserManagement = () => {
     
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      // Path based on router.delete('/:id') in your user routes
+      // Standardized path: ensures we hit /api/users/:id
       await axios.delete(`${API_BASE_URL}/users/${id}`, config);
       toast.success("ACCOUNT REMOVED", { id: deleteToast });
       fetchUsers();
@@ -172,7 +170,7 @@ const UserManagement = () => {
                       <option value="FC">FC</option>
                       <option value="MD">MD</option>
                       <option value="ACCOUNTS">ACCOUNTS</option>
-                      <option value="ADMIN">ADMIN</option>
+                      <option value="Admin">ADMIN</option>
                     </select>
                   </div>
                   <div>
@@ -236,7 +234,7 @@ const UserManagement = () => {
                         </td>
                         <td className="p-6">
                           <span className={`text-[9px] font-black px-3 py-1 rounded-lg tracking-widest ${
-                            u.role?.toUpperCase() === 'ADMIN' 
+                            u.role?.toLowerCase() === 'admin' 
                             ? 'bg-purple-100 text-purple-600' 
                             : 'bg-orange-100 text-[#A67C52]'
                           }`}>
