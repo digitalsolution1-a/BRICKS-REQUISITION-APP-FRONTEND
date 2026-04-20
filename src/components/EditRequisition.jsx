@@ -45,7 +45,6 @@ function EditRequisition() {
         });
         
         if (res.data) {
-          // Sync database response to local form state with fallbacks for field naming variations
           setFormData({
             requestNarrative: res.data.requestNarrative || res.data.description || '',
             amount: res.data.amount || res.data.totalAmount || '',
@@ -54,7 +53,6 @@ function EditRequisition() {
             department: res.data.department || res.data.dept || '',
             beneficiaryDetails: res.data.beneficiaryDetails || res.data.accountDetails || '',
             currency: res.data.currency || 'NGN',
-            // Clean date format for the HTML input field
             dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : '' 
           });
         }
@@ -82,21 +80,24 @@ function EditRequisition() {
     e.preventDefault();
     setUpdating(true);
 
+    // Validation Check before sending
+    if (!formData.department) {
+      toast.error("Department field is missing");
+      setUpdating(false);
+      return;
+    }
+
     const data = new FormData();
-    // Appending keys to match models/Requisition.js exactly
     data.append('requestNarrative', formData.requestNarrative);
     data.append('amount', Number(formData.amount)); 
     data.append('amountInWords', formData.amountInWords);
-    
-    // VENDOR: Non-compulsory logic (Falls back to 'N/A' if empty)
     data.append('vendorName', formData.vendorName || 'N/A');
-    
     data.append('beneficiaryDetails', formData.beneficiaryDetails);
     data.append('currency', formData.currency);
     data.append('department', formData.department);
     data.append('dueDate', formData.dueDate);
     
-    // Workflow Reset
+    // Workflow Reset constants
     data.append('status', 'Pending');
     data.append('currentStage', 'HOD');
     
@@ -130,7 +131,6 @@ function EditRequisition() {
     <div className="min-h-screen bg-[#f8f9fa] py-12 px-4 uppercase font-bold">
       <div className="max-w-4xl mx-auto bg-white shadow-2xl rounded-[3rem] overflow-hidden border-t-[12px] border-[#A67C52]">
         
-        {/* HEADER SECTION */}
         <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
           <div>
             <h1 className="text-2xl font-black text-gray-900 italic tracking-tighter">Modify Request</h1>
@@ -145,7 +145,6 @@ function EditRequisition() {
           </button>
         </div>
 
-        {/* FORM SECTION */}
         <form onSubmit={handleSubmit} className="p-10 space-y-6">
           
           <div className="flex flex-col">
@@ -210,18 +209,30 @@ function EditRequisition() {
             </div>
           </div>
 
-          {/* VENDOR SELECTION - OPTIONAL */}
-          <div className="flex flex-col">
-            <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Vendor Selection (Optional)</label>
-            <select 
-              name="vendorName" 
-              value={formData.vendorName} 
-              onChange={handleInputChange} 
-              className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]"
-            >
-              <option value="">SELECT VENDOR (OR LEAVE BLANK)</option>
-              {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ADDED DEPARTMENT FIELD - CRITICAL FOR VALIDATION */}
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Department</label>
+              <input 
+                type="text" 
+                name="department" 
+                value={formData.department} 
+                className="bg-gray-100 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent cursor-not-allowed" 
+                readOnly 
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Vendor Selection (Optional)</label>
+              <select 
+                name="vendorName" 
+                value={formData.vendorName} 
+                onChange={handleInputChange} 
+                className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]"
+              >
+                <option value="">SELECT VENDOR</option>
+                {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-200">
