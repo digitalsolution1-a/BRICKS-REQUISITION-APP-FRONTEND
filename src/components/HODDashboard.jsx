@@ -3,7 +3,6 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AttachmentViewer from '../components/AttachmentViewer';
-// --- NEW IMPORT ---
 import RequisitionHistory from '../components/RequisitionHistory';
 
 const HODDashboard = () => {
@@ -235,8 +234,6 @@ const HODDashboard = () => {
               )}
             </>
           ) : (
-            // --- UPDATED: USING REQUISITIONHISTORY COMPONENT ---
-            // Filters based on the HOD's department for privacy
             <RequisitionHistory 
               requisitions={filterList(history).filter(req => req.dept === user.dept || req.department === user.dept)} 
             />
@@ -257,7 +254,8 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              {/* INFO GRID - UPDATED TO 5 COLUMNS FOR ACCOUNT DETAILS */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
                   <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
@@ -273,6 +271,13 @@ const HODDashboard = () => {
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
                   <p className="text-xs font-black text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
+                </div>
+                {/* --- NEW FIELD: ACCOUNT DETAILS --- */}
+                <div className="bg-gray-900 p-4 rounded-2xl border border-[#A67C52]/30">
+                  <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
+                  <p className="text-[10px] font-bold text-white break-words leading-tight">
+                    {selectedReq.accountDetails || 'NOT PROVIDED'}
+                  </p>
                 </div>
               </div>
 
