@@ -41,14 +41,20 @@ const RequisitionHistory = ({ requisitions }) => {
               </tr>
             ) : (
               historyItems.map((req) => (
-                <tr key={req._id} className="hover:bg-gray-50/50 transition-colors uppercase">
+                <tr key={req._id || req.id} className="hover:bg-gray-50/50 transition-colors uppercase">
                   <td className="p-6">
-                    <p className="font-black text-gray-800 text-sm">{req.title || req.requestNarrative || req.description}</p>
-                    <p className="text-[10px] text-gray-400 italic lowercase">{new Date(req.createdAt).toLocaleDateString()}</p>
+                    <p className="font-black text-gray-800 text-sm">
+                      {req.title || req.requestNarrative || req.description}
+                    </p>
+                    <p className="text-[10px] text-gray-400 italic lowercase">
+                      {new Date(req.createdAt).toLocaleDateString()}
+                    </p>
                   </td>
-                  <td className="p-6 text-[10px] font-black text-gray-500">{req.dept || req.department}</td>
+                  <td className="p-6 text-[10px] font-black text-gray-500">
+                    {req.dept || req.department}
+                  </td>
                   <td className="p-6 font-black text-gray-800 text-sm">
-                    {req.currency || '₦'}{req.amount?.toLocaleString() || req.totalAmount?.toLocaleString()}
+                    {req.currency || '₦'}{(req.amount || req.totalAmount)?.toLocaleString()}
                   </td>
                   <td className="p-6">
                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
@@ -63,7 +69,15 @@ const RequisitionHistory = ({ requisitions }) => {
                     {/* SHOW EDIT BUTTON ONLY FOR DECLINED OR PENDING STATUS */}
                     {(req.status?.toLowerCase() === 'declined' || req.status?.toLowerCase() === 'pending') && (
                       <button 
-                        onClick={() => navigate(`/edit-requisition/${req._id}`)}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation(); // Prevents the click from bubbling up to the row
+                          const targetId = req._id || req.id;
+                          if (targetId) {
+                            navigate(`/edit-requisition/${targetId}`);
+                          }
+                        }}
                         className="bg-black text-white px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all shadow-md active:scale-90"
                       >
                         EDIT / RESUBMIT
