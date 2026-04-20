@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import toast from 'react-hot-toast'; // Highly recommended for better UX
+import toast from 'react-hot-toast';
 import { DEPARTMENTS } from '../utils/constants';
 
-const CLIENTS = ["Chairborne", "ERDIS", "Hadnuvo", "SouthCoast", "OIS", "Penguin PTE", "Bruhat Logistics", "Sangfroid", "BA Ports", "ARC", "GreenSwift", "Others"];
 const VENDORS = ["RICHE INTEGRATED TECHNOLOGY", "DAM JEDA SERVICES", "SCENTECH MECHANICAL SOLUTUION", "TECHRADAR", "PGOR GLOBAL SERVICES", "CABRIK MARINE", "FIELDBASE", "YUBATECH", "YEMOT GLOBAL", "JEMMATELIZ GLOBAL SERVICES", "ALADE MARINE SERVICES", "ECA OILFIELD & INDUSTRIAL SERVICES LTD", "A-Z TECHNICAL SOLUTION", "ROPETECH ENGINEERING SERVICES", "GRAFFINS GLOBAL SERVICES", "KADGO NIGERIA LIMITED", "MARINETECH SERVICES LIMITED", "VIC-DON INTERNATIONAL CO. LTD", "FARDEZZ INTEGRATED SERVICES", "MAJIMA LOGISTICS SERVICES", "OAK SAGE SERVICES", "VIVYKEN VENTURE", "MARSHALL SHIELD SERVICES", "MAXELO INTEGRATED SERVICS", "ONE MINE PLUMBING SERVICES", "TRAVICES NIGERIA LIMITED", "MANTRAC NIGERIA LIMITED", "USMAN STORES", "AEROPORT TRAVELS & TOURS LTD", "BLUWIN SERVICES", "OTHERS"];
 
 function EditRequisition() {
@@ -18,7 +17,7 @@ function EditRequisition() {
     amount: '',
     vendorName: '',
     department: '',
-    beneficiaryDetails: '',
+    accountDetails: '', // Added field
     currency: 'NGN'
   });
 
@@ -26,9 +25,8 @@ function EditRequisition() {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    // SECURITY CHECK: If no token, don't even try to fetch
     if (!token) {
-      console.error("No token found, redirecting...");
+      toast.error("Authentication required");
       navigate('/');
       return;
     }
@@ -40,14 +38,24 @@ function EditRequisition() {
         });
         
         if (res.data) {
-          setFormData(res.data);
+          // Merge fetched data into state
+          setFormData(prev => ({
+            ...prev,
+            ...res.data,
+            // Ensure narrative/description mapping
+            requestNarrative: res.data.requestNarrative || res.data.description || ''
+          }));
         }
         setLoading(false);
       } catch (err) {
         console.error("Fetch Error:", err);
-        toast.error("Session expired or invalid requisition ID");
-        // DO NOT navigate('/') here if you want to stay logged in
-        // navigate('/dashboard'); 
+        if (err.response?.status === 401) {
+          localStorage.clear();
+          navigate('/');
+        } else {
+          toast.error("Failed to load requisition data");
+          setLoading(false);
+        }
       }
     };
 
@@ -65,13 +73,13 @@ function EditRequisition() {
 
     const data = new FormData();
     
-    // Logic to only append valid data
-    Object.keys(formData).forEach(key => {
-      // Avoid appending nested objects or null values that might break the backend
-      if (key !== 'approvalHistory' && formData[key] !== null && formData[key] !== undefined) {
-        data.append(key, formData[key]);
-      }
-    });
+    // Append fields to FormData
+    data.append('requestNarrative', formData.requestNarrative);
+    data.append('amount', formData.amount);
+    data.append('vendorName', formData.vendorName);
+    data.append('accountDetails', formData.accountDetails);
+    data.append('currency', formData.currency);
+    data.append('department', formData.department);
     
     if (file) data.append('document', file);
 
@@ -85,6 +93,7 @@ function EditRequisition() {
       toast.success("REQUISITION UPDATED & RESUBMITTED");
       navigate('/dashboard');
     } catch (err) {
+      console.error("Update error:", err);
       toast.error(err.response?.data?.error || "Update Failed");
     } finally {
       setUpdating(false);
@@ -121,11 +130,25 @@ function EditRequisition() {
             <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic">Narrative / Justification</label>
             <textarea 
               name="requestNarrative" 
-              value={formData.requestNarrative || ''} 
+              value={formData.requestNarrative} 
               onChange={handleInputChange}
               placeholder="Explain the purpose of this request..."
               className="bg-gray-50 p-6 rounded-[2rem] border-2 border-transparent focus:border-[#A67C52] focus:bg-white outline-none font-bold text-sm transition-all"
               rows="4"
+              required
+            />
+          </div>
+
+          {/* ACCOUNT DETAILS FIELD */}
+          <div className="flex flex-col">
+            <label className="text-[9px] font-black text-[#A67C52] mb-2 tracking-widest italic">Bank & Account Information</label>
+            <input 
+              type="text" 
+              name="accountDetails" 
+              value={formData.accountDetails} 
+              onChange={handleInputChange}
+              placeholder="Bank Name, Account Number, Account Name"
+              className="bg-gray-900 text-white p-6 rounded-[1.5rem] border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-xs transition-all shadow-inner"
               required
             />
           </div>
@@ -136,7 +159,7 @@ function EditRequisition() {
               <input 
                 type="number" 
                 name="amount" 
-                value={formData.amount || ''} 
+                value={formData.amount} 
                 onChange={handleInputChange}
                 className="bg-gray-50 p-5 rounded-2xl font-black text-xl text-[#A67C52] outline-none border-2 border-transparent focus:border-[#A67C52]"
                 required
@@ -147,7 +170,7 @@ function EditRequisition() {
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic">Beneficiary / Vendor</label>
               <select 
                 name="vendorName" 
-                value={formData.vendorName || ''} 
+                value={formData.vendorName} 
                 onChange={handleInputChange}
                 className="bg-gray-50 p-5 rounded-2xl font-black text-xs outline-none border-2 border-transparent focus:border-[#A67C52]"
                 required
