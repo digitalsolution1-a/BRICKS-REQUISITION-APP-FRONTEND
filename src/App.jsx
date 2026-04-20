@@ -22,20 +22,37 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
-  if (!token) return <Navigate to="/" replace />;
+  // If no token exists, immediately send to login
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
 
+  // Role-based access control
   if (allowedRoles.length > 0) {
     const userRole = user?.role?.trim().toUpperCase();
     const normalizedRoles = allowedRoles.map(role => role.toUpperCase());
-    const hasAccess = user && normalizedRoles.includes(userRole);
-    if (!hasAccess) return <Navigate to="/staff-dashboard" replace />;
+    
+    // If user exists but role isn't authorized for this specific route
+    if (user && !normalizedRoles.includes(userRole)) {
+      return <Navigate to="/staff-dashboard" replace />;
+    }
   }
 
   return children;
 };
 
-// --- PublicRoute: Entry Logic ---
+// --- PublicRoute: Prevent logged-in users from seeing Login page ---
 const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+  if (token && user) {
+    // If they are management, send to dashboard; otherwise staff-dashboard
+    const mgmtRoles = ['HOD', 'FC', 'FINANCE CONTROLLER', 'MD', 'ACCOUNTANT', 'ADMIN'];
+    const isMgmt = mgmtRoles.includes(user.role?.trim().toUpperCase());
+    return <Navigate to={isMgmt ? "/dashboard" : "/staff-dashboard"} replace />;
+  }
+
   return children; 
 };
 
@@ -57,14 +74,14 @@ function App() {
 
       <BrowserRouter>
         <Routes>
-          {/* THE ENTRY POINT */}
+          {/* LOGIN - Using PublicRoute to prevent re-login while session is active */}
           <Route path="/" element={
             <PublicRoute>
               <Login />
             </PublicRoute>
           } />
 
-          {/* STAFF ROUTES */}
+          {/* STAFF DASHBOARD */}
           <Route path="/staff-dashboard" element={
             <ProtectedRoute>
               <StaffDashboard />
@@ -77,14 +94,14 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* ADDED EDIT ROUTE HERE - This prevents the auto-logout/redirect */}
+          {/* EDIT REQUISITION - Added properly with ID parameter */}
           <Route path="/edit-requisition/:id" element={
             <ProtectedRoute>
               <EditRequisition />
             </ProtectedRoute>
           } />
 
-          {/* MANAGEMENT & TREASURY ROUTES */}
+          {/* MANAGEMENT TRAFFIC CONTROLLER */}
           <Route 
             path="/dashboard" 
             element={
@@ -112,7 +129,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Fallback Catch-all */}
+          {/* Fallback Catch-all: Send unknown routes back to login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
