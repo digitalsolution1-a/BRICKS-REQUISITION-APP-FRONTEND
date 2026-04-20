@@ -15,12 +15,12 @@ function EditRequisition() {
   const [formData, setFormData] = useState({
     requestNarrative: '',
     amount: '',
-    amountInWords: '', // Required by Model
+    amountInWords: '', 
     vendorName: '',
     department: '',
-    beneficiaryDetails: '', // Renamed from accountDetails to match model
+    beneficiaryDetails: '', 
     currency: 'NGN',
-    dueDate: '' // Required by Model
+    dueDate: '' 
   });
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -45,15 +45,16 @@ function EditRequisition() {
         });
         
         if (res.data) {
-          // Mapping DB fields to Form fields
+          // Sync database response to local form state
           setFormData({
-            requestNarrative: res.data.requestNarrative || '',
-            amount: res.data.amount || '',
+            requestNarrative: res.data.requestNarrative || res.data.description || '',
+            amount: res.data.amount || res.data.totalAmount || '',
             amountInWords: res.data.amountInWords || '',
             vendorName: res.data.vendorName || '',
-            department: res.data.department || '',
-            beneficiaryDetails: res.data.beneficiaryDetails || '',
+            department: res.data.department || res.data.dept || '',
+            beneficiaryDetails: res.data.beneficiaryDetails || res.data.accountDetails || '',
             currency: res.data.currency || 'NGN',
+            // Formats date string to YYYY-MM-DD for the HTML date input
             dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : '' 
           });
         }
@@ -63,7 +64,7 @@ function EditRequisition() {
           localStorage.clear();
           navigate('/');
         } else {
-          toast.error("Error retrieving record");
+          toast.error("Error retrieving record details");
           setLoading(false);
         }
       }
@@ -82,16 +83,19 @@ function EditRequisition() {
     setUpdating(true);
 
     const data = new FormData();
-    // Append all fields required by models/Requisition.js
+    // Ensure all keys match models/Requisition.js requirements
     data.append('requestNarrative', formData.requestNarrative);
-    data.append('amount', Number(formData.amount)); // Ensure Number type
+    data.append('amount', Number(formData.amount)); 
     data.append('amountInWords', formData.amountInWords);
     data.append('vendorName', formData.vendorName);
     data.append('beneficiaryDetails', formData.beneficiaryDetails);
     data.append('currency', formData.currency);
     data.append('department', formData.department);
     data.append('dueDate', formData.dueDate);
-    data.append('status', 'Pending'); // Reset status to Pending upon resubmission
+    
+    // Crucial: Reset status so the request enters the approval flow again
+    data.append('status', 'Pending');
+    data.append('currentStage', 'HOD');
     
     if (file) data.append('document', file);
 
@@ -105,8 +109,9 @@ function EditRequisition() {
       toast.success("REQUISITION UPDATED & RESUBMITTED");
       navigate('/staff-dashboard');
     } catch (err) {
-      console.error("Update Error:", err.response?.data);
-      toast.error(err.response?.data?.message || "Update Failed: Check required fields");
+      console.error("Submission Error:", err.response?.data);
+      const serverMsg = err.response?.data?.message || err.response?.data?.error;
+      toast.error(serverMsg || "Update Failed: Check required fields");
     } finally {
       setUpdating(false);
     }
@@ -121,56 +126,115 @@ function EditRequisition() {
   return (
     <div className="min-h-screen bg-[#f8f9fa] py-12 px-4 uppercase font-bold">
       <div className="max-w-4xl mx-auto bg-white shadow-2xl rounded-[3rem] overflow-hidden border-t-[12px] border-[#A67C52]">
+        
+        {/* HEADER */}
         <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
           <div>
             <h1 className="text-2xl font-black text-gray-900 italic tracking-tighter">Modify Request</h1>
             <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Ref: {id?.slice(-8)}</p>
           </div>
-          <button type="button" onClick={() => navigate('/staff-dashboard')} className="h-10 w-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
+          <button 
+            type="button" 
+            onClick={() => navigate('/staff-dashboard')} 
+            className="h-10 w-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
+          >
+            ✕
+          </button>
         </div>
 
+        {/* FORM BODY */}
         <form onSubmit={handleSubmit} className="p-10 space-y-6">
+          
           <div className="flex flex-col">
             <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Narrative / Justification</label>
-            <textarea name="requestNarrative" value={formData.requestNarrative} onChange={handleInputChange} className="bg-gray-50 p-6 rounded-[2rem] border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-sm transition-all" rows="3" required />
+            <textarea 
+              name="requestNarrative" 
+              value={formData.requestNarrative} 
+              onChange={handleInputChange} 
+              className="bg-gray-50 p-6 rounded-[2rem] border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-sm transition-all" 
+              rows="3" 
+              required 
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col">
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Beneficiary Details (Bank Info)</label>
-              <input type="text" name="beneficiaryDetails" value={formData.beneficiaryDetails} onChange={handleInputChange} className="bg-black text-white p-5 rounded-2xl border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-xs shadow-inner" required />
+              <input 
+                type="text" 
+                name="beneficiaryDetails" 
+                value={formData.beneficiaryDetails} 
+                onChange={handleInputChange} 
+                className="bg-black text-white p-5 rounded-2xl border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-xs shadow-inner" 
+                required 
+              />
             </div>
             <div className="flex flex-col">
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Due Date</label>
-              <input type="date" name="dueDate" value={formData.dueDate} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-xs outline-none border-2 border-transparent focus:border-[#A67C52]" required />
+              <input 
+                type="date" 
+                name="dueDate" 
+                value={formData.dueDate} 
+                onChange={handleInputChange} 
+                className="bg-gray-50 p-5 rounded-2xl font-black text-xs outline-none border-2 border-transparent focus:border-[#A67C52]" 
+                required 
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col">
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Amount ({formData.currency})</label>
-              <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-xl text-[#A67C52] outline-none border-2 border-transparent focus:border-[#A67C52]" required />
+              <input 
+                type="number" 
+                name="amount" 
+                value={formData.amount} 
+                onChange={handleInputChange} 
+                className="bg-gray-50 p-5 rounded-2xl font-black text-xl text-[#A67C52] outline-none border-2 border-transparent focus:border-[#A67C52]" 
+                required 
+              />
             </div>
             <div className="flex flex-col">
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Amount in Words</label>
-              <input type="text" name="amountInWords" value={formData.amountInWords} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" required />
+              <input 
+                type="text" 
+                name="amountInWords" 
+                value={formData.amountInWords} 
+                onChange={handleInputChange} 
+                className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" 
+                required 
+              />
             </div>
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Vendor</label>
-            <select name="vendorName" value={formData.vendorName} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" required>
+            <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Vendor Selection</label>
+            <select 
+              name="vendorName" 
+              value={formData.vendorName} 
+              onChange={handleInputChange} 
+              className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" 
+              required
+            >
               <option value="">SELECT VENDOR</option>
               {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
 
           <div className="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-200">
-             <label className="text-[9px] font-black text-gray-400 mb-2 block tracking-widest italic uppercase">Attachment (Optional)</label>
-             <input type="file" onChange={(e) => setFile(e.target.files[0])} className="text-[10px] font-black" />
+             <label className="text-[9px] font-black text-gray-400 mb-2 block tracking-widest italic uppercase">Supporting Document (Upload New to Replace)</label>
+             <input 
+               type="file" 
+               onChange={(e) => setFile(e.target.files[0])} 
+               className="text-[10px] font-black" 
+             />
           </div>
 
-          <button type="submit" disabled={updating} className="w-full py-6 bg-black text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.3em] hover:bg-[#A67C52] transition-all shadow-xl active:scale-95 disabled:opacity-50">
+          <button 
+            type="submit" 
+            disabled={updating} 
+            className="w-full py-6 bg-black text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.3em] hover:bg-[#A67C52] transition-all shadow-xl active:scale-95 disabled:opacity-50"
+          >
             {updating ? 'SYNCHRONIZING...' : 'UPDATE & RESUBMIT'}
           </button>
         </form>
