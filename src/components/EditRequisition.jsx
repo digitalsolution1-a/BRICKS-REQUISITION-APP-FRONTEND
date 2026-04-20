@@ -11,27 +11,28 @@ function EditRequisition() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [file, setFile] = useState(null);
+  
   const [formData, setFormData] = useState({
     requestNarrative: '',
     amount: '',
+    amountInWords: '', // Required by Model
     vendorName: '',
     department: '',
-    accountDetails: '',
-    currency: 'NGN'
+    beneficiaryDetails: '', // Renamed from accountDetails to match model
+    currency: 'NGN',
+    dueDate: '' // Required by Model
   });
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    // 1. Session Check
     if (!token) {
       navigate('/');
       return;
     }
 
     const fetchRequisition = async () => {
-      // 2. ID Validation to prevent "undefined" route hits
       if (!id || id === 'undefined') {
         toast.error("Invalid Request ID");
         navigate('/staff-dashboard');
@@ -44,24 +45,25 @@ function EditRequisition() {
         });
         
         if (res.data) {
+          // Mapping DB fields to Form fields
           setFormData({
-            requestNarrative: res.data.requestNarrative || res.data.description || '',
-            amount: res.data.amount || res.data.totalAmount || '',
+            requestNarrative: res.data.requestNarrative || '',
+            amount: res.data.amount || '',
+            amountInWords: res.data.amountInWords || '',
             vendorName: res.data.vendorName || '',
-            department: res.data.department || res.data.dept || '',
-            accountDetails: res.data.accountDetails || '',
-            currency: res.data.currency || 'NGN'
+            department: res.data.department || '',
+            beneficiaryDetails: res.data.beneficiaryDetails || '',
+            currency: res.data.currency || 'NGN',
+            dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : '' 
           });
         }
         setLoading(false);
       } catch (err) {
-        console.error("Fetch Error:", err);
-        // Only force logout on 401 Unauthorized
         if (err.response?.status === 401) {
           localStorage.clear();
           navigate('/');
         } else {
-          toast.error("Could not retrieve request data");
+          toast.error("Error retrieving record");
           setLoading(false);
         }
       }
@@ -80,12 +82,16 @@ function EditRequisition() {
     setUpdating(true);
 
     const data = new FormData();
+    // Append all fields required by models/Requisition.js
     data.append('requestNarrative', formData.requestNarrative);
-    data.append('amount', formData.amount);
+    data.append('amount', Number(formData.amount)); // Ensure Number type
+    data.append('amountInWords', formData.amountInWords);
     data.append('vendorName', formData.vendorName);
-    data.append('accountDetails', formData.accountDetails);
+    data.append('beneficiaryDetails', formData.beneficiaryDetails);
     data.append('currency', formData.currency);
     data.append('department', formData.department);
+    data.append('dueDate', formData.dueDate);
+    data.append('status', 'Pending'); // Reset status to Pending upon resubmission
     
     if (file) data.append('document', file);
 
@@ -96,11 +102,11 @@ function EditRequisition() {
           'Authorization': `Bearer ${token}` 
         }
       });
-      toast.success("REQUISITION UPDATED");
-      // Redirect to staff dashboard to see the update
+      toast.success("REQUISITION UPDATED & RESUBMITTED");
       navigate('/staff-dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.error || "Update Failed");
+      console.error("Update Error:", err.response?.data);
+      toast.error(err.response?.data?.message || "Update Failed: Check required fields");
     } finally {
       setUpdating(false);
     }
@@ -118,45 +124,49 @@ function EditRequisition() {
         <div className="p-10 border-b flex justify-between items-center bg-gray-50/50">
           <div>
             <h1 className="text-2xl font-black text-gray-900 italic tracking-tighter">Modify Request</h1>
-            <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Reference: {id?.slice(-8)}</p>
+            <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Ref: {id?.slice(-8)}</p>
           </div>
-          <button 
-            type="button"
-            onClick={() => navigate('/staff-dashboard')} 
-            className="h-10 w-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
-          >
-            ✕
-          </button>
+          <button type="button" onClick={() => navigate('/staff-dashboard')} className="h-10 w-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-8">
+        <form onSubmit={handleSubmit} className="p-10 space-y-6">
           <div className="flex flex-col">
             <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Narrative / Justification</label>
-            <textarea name="requestNarrative" value={formData.requestNarrative} onChange={handleInputChange} className="bg-gray-50 p-6 rounded-[2rem] border-2 border-transparent focus:border-[#A67C52] focus:bg-white outline-none font-bold text-sm transition-all" rows="4" required />
+            <textarea name="requestNarrative" value={formData.requestNarrative} onChange={handleInputChange} className="bg-gray-50 p-6 rounded-[2rem] border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-sm transition-all" rows="3" required />
           </div>
 
-          <div className="flex flex-col">
-            <label className="text-[9px] font-black text-[#A67C52] mb-2 tracking-widest italic uppercase">Payment Destination (Bank/Account)</label>
-            <input type="text" name="accountDetails" value={formData.accountDetails} onChange={handleInputChange} placeholder="Bank Name, Account Number, Account Name" className="bg-black text-white p-6 rounded-[1.5rem] border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-xs transition-all shadow-inner" required />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Beneficiary Details (Bank Info)</label>
+              <input type="text" name="beneficiaryDetails" value={formData.beneficiaryDetails} onChange={handleInputChange} className="bg-black text-white p-5 rounded-2xl border-2 border-transparent focus:border-[#A67C52] outline-none font-bold text-xs shadow-inner" required />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Due Date</label>
+              <input type="date" name="dueDate" value={formData.dueDate} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-xs outline-none border-2 border-transparent focus:border-[#A67C52]" required />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col">
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Amount ({formData.currency})</label>
               <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-xl text-[#A67C52] outline-none border-2 border-transparent focus:border-[#A67C52]" required />
             </div>
-            
             <div className="flex flex-col">
-              <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Vendor</label>
-              <select name="vendorName" value={formData.vendorName} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" required>
-                <option value="">SELECT VENDOR</option>
-                {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+              <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Amount in Words</label>
+              <input type="text" name="amountInWords" value={formData.amountInWords} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" required />
             </div>
           </div>
 
-          <div className="bg-gray-50 p-8 rounded-[2rem] border-2 border-dashed border-gray-200">
-             <label className="text-[9px] font-black text-gray-400 mb-4 block tracking-widest italic uppercase">Replace Attachment (Optional)</label>
+          <div className="flex flex-col">
+            <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Vendor</label>
+            <select name="vendorName" value={formData.vendorName} onChange={handleInputChange} className="bg-gray-50 p-5 rounded-2xl font-black text-[10px] outline-none border-2 border-transparent focus:border-[#A67C52]" required>
+              <option value="">SELECT VENDOR</option>
+              {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+
+          <div className="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-200">
+             <label className="text-[9px] font-black text-gray-400 mb-2 block tracking-widest italic uppercase">Attachment (Optional)</label>
              <input type="file" onChange={(e) => setFile(e.target.files[0])} className="text-[10px] font-black" />
           </div>
 
