@@ -1,11 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const RequisitionHistory = ({ requisitions }) => {
-  // Filter for everything that is NOT pending
+  const navigate = useNavigate();
+
+  // Filter for everything that is NOT pending, but include "Declined" so staff can edit them
   const historyItems = requisitions.filter(req => 
     req.status?.toLowerCase() === 'approved' || 
     req.status?.toLowerCase() === 'rejected' ||
-    req.status?.toLowerCase() === 'completed'
+    req.status?.toLowerCase() === 'completed' ||
+    req.status?.toLowerCase() === 'declined'
   );
 
   return (
@@ -24,13 +28,14 @@ const RequisitionHistory = ({ requisitions }) => {
               <th className="p-6">Description</th>
               <th className="p-6">Department</th>
               <th className="p-6">Amount</th>
-              <th className="p-6">Final Status</th>
+              <th className="p-6">Status</th>
+              <th className="p-6">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {historyItems.length === 0 ? (
               <tr>
-                <td colSpan="4" className="p-20 text-center font-black text-gray-300 text-xs uppercase">
+                <td colSpan="5" className="p-20 text-center font-black text-gray-300 text-xs uppercase">
                   No Archived Records Found
                 </td>
               </tr>
@@ -38,17 +43,32 @@ const RequisitionHistory = ({ requisitions }) => {
               historyItems.map((req) => (
                 <tr key={req._id} className="hover:bg-gray-50/50 transition-colors uppercase">
                   <td className="p-6">
-                    <p className="font-black text-gray-800 text-sm">{req.title || req.description}</p>
+                    <p className="font-black text-gray-800 text-sm">{req.title || req.requestNarrative || req.description}</p>
                     <p className="text-[10px] text-gray-400 italic lowercase">{new Date(req.createdAt).toLocaleDateString()}</p>
                   </td>
                   <td className="p-6 text-[10px] font-black text-gray-500">{req.dept || req.department}</td>
-                  <td className="p-6 font-black text-gray-800 text-sm">₦{req.totalAmount?.toLocaleString()}</td>
+                  <td className="p-6 font-black text-gray-800 text-sm">
+                    {req.currency || '₦'}{req.amount?.toLocaleString() || req.totalAmount?.toLocaleString()}
+                  </td>
                   <td className="p-6">
                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
-                      req.status?.toLowerCase() === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                      req.status?.toLowerCase() === 'approved' ? 'bg-green-100 text-green-600' : 
+                      req.status?.toLowerCase() === 'declined' ? 'bg-orange-100 text-orange-600' :
+                      'bg-red-100 text-red-600'
                     }`}>
                       {req.status}
                     </span>
+                  </td>
+                  <td className="p-6">
+                    {/* SHOW EDIT BUTTON ONLY FOR DECLINED OR PENDING STATUS */}
+                    {(req.status?.toLowerCase() === 'declined' || req.status?.toLowerCase() === 'pending') && (
+                      <button 
+                        onClick={() => navigate(`/edit-requisition/${req._id}`)}
+                        className="bg-black text-white px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all shadow-md active:scale-90"
+                      >
+                        EDIT / RESUBMIT
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
