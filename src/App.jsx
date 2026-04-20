@@ -77,6 +77,13 @@ function App() {
             </ProtectedRoute>
           } />
 
+          {/* ADDED EDIT ROUTE HERE - This prevents the auto-logout/redirect */}
+          <Route path="/edit-requisition/:id" element={
+            <ProtectedRoute>
+              <EditRequisition />
+            </ProtectedRoute>
+          } />
+
           {/* MANAGEMENT & TREASURY ROUTES */}
           <Route 
             path="/dashboard" 
@@ -115,44 +122,30 @@ function App() {
 
 /**
  * Traffic controller for management users.
- * Optimized with multi-variant matching to solve FC routing issues.
  */
 const DashboardLogic = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  
-  // Clean the string: remove whitespace and make uppercase
   const role = user?.role?.trim().toUpperCase();
 
-  // DEBUG: Check your browser console (F12) to see exactly what role is being detected
   console.log("Bricks Portal - Detected Role:", role);
 
   switch (role) {
     case 'MD':
       return <MDDashboard />;
-    
     case 'HOD':
       return <HODDashboard />;
-    
-    // Multi-variant match for FC
     case 'FC':
     case 'FINANCE CONTROLLER':
     case 'FINANCIAL CONTROLLER':
     case 'FINANCE_CONTROLLER':
       return <FCDashboard />;
-    
-    // Multi-variant match for Accountant
     case 'ACCOUNTANT':
     case 'ACCOUNTS':
     case 'TREASURY':
       return <AccountantDashboard />;
-    
     case 'ADMIN':
       return <UserManagement />;
-
     default:
-      /** * If it hits this fallback, it means the role string in the DB 
-       * doesn't match any cases above. 
-       */
       return <Dashboard />;
   }
 };
