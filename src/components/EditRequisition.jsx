@@ -24,17 +24,17 @@ function EditRequisition() {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    // 1. Strict Token Check
+    // 1. Session Check
     if (!token) {
       navigate('/');
       return;
     }
 
     const fetchRequisition = async () => {
-      // 2. Prevent fetching if ID is mangled or missing
+      // 2. ID Validation to prevent "undefined" route hits
       if (!id || id === 'undefined') {
         toast.error("Invalid Request ID");
-        navigate('/dashboard');
+        navigate('/staff-dashboard');
         return;
       }
 
@@ -46,7 +46,7 @@ function EditRequisition() {
         if (res.data) {
           setFormData({
             requestNarrative: res.data.requestNarrative || res.data.description || '',
-            amount: res.data.amount || '',
+            amount: res.data.amount || res.data.totalAmount || '',
             vendorName: res.data.vendorName || '',
             department: res.data.department || res.data.dept || '',
             accountDetails: res.data.accountDetails || '',
@@ -56,7 +56,7 @@ function EditRequisition() {
         setLoading(false);
       } catch (err) {
         console.error("Fetch Error:", err);
-        // Only logout if the server explicitly says the token is dead (401)
+        // Only force logout on 401 Unauthorized
         if (err.response?.status === 401) {
           localStorage.clear();
           navigate('/');
@@ -97,7 +97,8 @@ function EditRequisition() {
         }
       });
       toast.success("REQUISITION UPDATED");
-      navigate('/dashboard');
+      // Redirect to staff dashboard to see the update
+      navigate('/staff-dashboard');
     } catch (err) {
       toast.error(err.response?.data?.error || "Update Failed");
     } finally {
@@ -119,7 +120,13 @@ function EditRequisition() {
             <h1 className="text-2xl font-black text-gray-900 italic tracking-tighter">Modify Request</h1>
             <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Reference: {id?.slice(-8)}</p>
           </div>
-          <button onClick={() => navigate('/dashboard')} className="h-10 w-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
+          <button 
+            type="button"
+            onClick={() => navigate('/staff-dashboard')} 
+            className="h-10 w-10 bg-white border border-gray-100 rounded-full flex items-center justify-center text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
+          >
+            ✕
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-8">
@@ -154,7 +161,7 @@ function EditRequisition() {
           </div>
 
           <button type="submit" disabled={updating} className="w-full py-6 bg-black text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.3em] hover:bg-[#A67C52] transition-all shadow-xl active:scale-95 disabled:opacity-50">
-            {updating ? 'SYCHRONIZING...' : 'UPDATE & RESUBMIT'}
+            {updating ? 'SYNCHRONIZING...' : 'UPDATE & RESUBMIT'}
           </button>
         </form>
       </div>
