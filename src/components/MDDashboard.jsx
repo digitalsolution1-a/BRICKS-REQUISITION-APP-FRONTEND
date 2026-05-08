@@ -27,7 +27,6 @@ const MDDashboard = () => {
   // --- HELPER TO EXTRACT FC COMMENT FROM HISTORY ---
   const getFCComment = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return null;
-    // Find the last entry made by the FC role
     const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC');
     return fcEntry ? fcEntry.comment : null;
   };
@@ -44,7 +43,7 @@ const MDDashboard = () => {
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, { 
           headers: { Authorization: `Bearer ${token}` } 
         }).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/requisitions/history/MD`, { 
+        axios.get(`${API_BASE_URL}/requisitions/history`, { 
           headers: { Authorization: `Bearer ${token}` } 
         }).catch(() => ({ data: [] }))
       ]);
@@ -242,7 +241,7 @@ const MDDashboard = () => {
 
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-8">
                 <div>
@@ -256,34 +255,52 @@ const MDDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {/* CORE METRICS GRID */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
-                  <p className="text-2xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                  <p className="text-xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
                 </div>
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.poNumber || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">DA Ref No</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.daRefNo || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
+                  <p className={`text-xs font-black ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {selectedReq.clientPaymentStatus || 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              {/* SECONDARY INFO GRID */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Staff / Vendor</p>
-                  <p className="text-[11px] font-black text-gray-800 uppercase truncate">
+                  <p className="text-[11px] font-black text-gray-800 uppercase">
                     {selectedReq.requesterName} {selectedReq.vendorName ? `→ ${selectedReq.vendorName}` : ''}
                   </p>
                 </div>
-                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date / Mode</p>
-                  <p className="text-[11px] font-black text-gray-800 uppercase">
-                    {new Date(selectedReq.dueDate).toLocaleDateString()} — {selectedReq.modeOfPayment}
+                <div className="bg-gray-900 p-6 rounded-[2rem] border border-[#A67C52]/30 text-white">
+                  <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
+                  <p className="text-[10px] font-bold tracking-wider leading-relaxed">
+                    {selectedReq.beneficiaryDetails || 'NOT SPECIFIED'}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-6 mb-10">
-                <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100">
+                <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100 shadow-inner">
                   <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
-                    "{selectedReq.requestNarrative || 'No description provided.'}"
+                    "{selectedReq.requestNarrative || selectedReq.description || 'No description provided.'}"
                   </p>
                 </div>
 
-                {/* --- EXTRACTED FC COMMENT DISPLAY --- */}
                 {getFCComment(selectedReq.approvalHistory) && (
                   <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
                     <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
