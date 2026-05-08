@@ -27,7 +27,6 @@ const FCDashboard = () => {
   // --- HELPER TO EXTRACT HOD COMMENT FROM HISTORY ---
   const getHODComment = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return null;
-    // Find the entry made by the HOD role
     const hodEntry = [...historyArray].find(entry => entry.actorRole === 'HOD');
     return hodEntry ? hodEntry.comment : null;
   };
@@ -40,17 +39,17 @@ const FCDashboard = () => {
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
+        // Assuming history endpoint for FC returns relevant vetted records
         axios.get(`${API_BASE_URL}/requisitions/history`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] }))
       ]);
 
-      const queueData = Array.isArray(queueRes.data) ? queueRes.data : [];
-      setRequisitions(queueData);
+      setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
       if ('setAppBadge' in navigator) {
-        queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
+        queueRes.data?.length > 0 ? navigator.setAppBadge(queueRes.data.length) : navigator.clearAppBadge();
       }
     } catch (err) {
       console.error("Sync Error:", err);
@@ -82,14 +81,6 @@ const FCDashboard = () => {
         icon: '🔔',
         style: { background: '#000', color: '#A67C52', fontWeight: 'bold' }
       });
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(reg => {
-          reg.showNotification("BRICKS FINANCE", {
-            body: "Push alerts successfully synchronized.",
-            icon: '/logo192.png'
-          });
-        });
-      }
     }
   };
 
@@ -233,7 +224,7 @@ const FCDashboard = () => {
 
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
@@ -243,7 +234,8 @@ const FCDashboard = () => {
                 <button onClick={handleCloseModal} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {/* ROW 1: CORE DATA */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
                   <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
@@ -262,14 +254,36 @@ const FCDashboard = () => {
                 </div>
               </div>
 
+              {/* ROW 2: NEW FIELDS + ACCOUNT DETAILS */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.poNumber || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">DA Ref No</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.daRefNo || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
+                  <p className={`text-xs font-black ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {selectedReq.clientPaymentStatus || 'N/A'}
+                  </p>
+                </div>
+                <div className="bg-gray-900 p-4 rounded-2xl border border-[#A67C52]/30">
+                  <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
+                  <p className="text-[10px] font-bold text-white break-words leading-tight">
+                    {selectedReq.beneficiaryDetails || selectedReq.accountDetails || 'NOT PROVIDED'}
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-6 mb-10 text-left">
                 <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 shadow-inner">
-                  <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest italic">Beneficiary / Narrative</p>
-                  <p className="text-[11px] font-bold text-gray-700 mb-3">{selectedReq.beneficiaryDetails}</p>
+                  <p className="text-[9px] font-black text-gray-300 mb-2 uppercase tracking-widest italic">Description of Need</p>
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
                 </div>
 
-                {/* --- NEW: HOD COMMENT SECTION --- */}
                 {getHODComment(selectedReq.approvalHistory) && (
                   <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-3xl border border-green-100">
                     <p className="text-[9px] font-black text-green-600 mb-2 uppercase tracking-[0.2em]">HOD Approval Remarks</p>
@@ -283,7 +297,6 @@ const FCDashboard = () => {
                    <div className="flex justify-between items-center mb-2 mt-4 px-6">
                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Audit Evidence Preview</p>
                    </div>
-
                   <div className="w-full bg-white rounded-[2rem] p-4 min-h-[400px]">
                     <AttachmentViewer url={selectedReq.attachmentUrl} />
                   </div>
