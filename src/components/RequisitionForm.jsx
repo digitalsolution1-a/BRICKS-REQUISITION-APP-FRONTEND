@@ -217,7 +217,7 @@ function RequisitionForm() {
                 )}
               </div>
               <div className="flex flex-col">
-                <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Target Vendor</label>
+                <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Vendor</label>
                 <select name="vendorName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                   <option value="">Choose Vendor</option>
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
