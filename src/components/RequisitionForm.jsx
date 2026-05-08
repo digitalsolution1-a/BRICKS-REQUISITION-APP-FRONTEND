@@ -179,7 +179,7 @@ function RequisitionForm() {
               </select>
             </div>
             <div className="flex flex-col">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Target HOD (Approver)</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">HOD (Approver)</label>
               <select name="hodForApproval" required className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all border-l-4 border-l-[#A67C52]" onChange={handleInputChange}>
                 <option value="">Select HOD Email</option>
                 {HOD_EMAILS.map(h => <option key={h} value={h}>{h}</option>)}
