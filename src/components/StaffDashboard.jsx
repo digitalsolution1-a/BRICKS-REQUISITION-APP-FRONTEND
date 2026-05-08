@@ -110,7 +110,7 @@ function StaffDashboard() {
             <div className="relative z-10">
               <h2 className="text-3xl font-black leading-none uppercase tracking-tighter italic">Create <br/> <span className="text-black">Request</span></h2>
               <p className="text-orange-100 text-[10px] mt-6 opacity-80 uppercase tracking-widest font-black leading-loose">
-                Submit procurement details for departmental review and MD approval.
+                Submit your requistion details for departmental review and MD approval.
               </p>
             </div>
             <Link 
@@ -125,7 +125,7 @@ function StaffDashboard() {
           <div className="md:col-span-3 bg-white rounded-[3rem] p-8 md:p-10 shadow-sm border border-gray-100">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
               <div>
-                <h2 className="text-2xl font-black uppercase text-gray-900 tracking-tighter italic">Submission <span className="text-[#A67C52]">Archive</span></h2>
+                <h2 className="text-2xl font-black uppercase text-gray-900 tracking-tighter italic">Submission <span className="text-[#A67C52]">History</span></h2>
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
               </div>
               <div className="text-[10px] font-black text-[#A67C52] uppercase tracking-[0.2em] bg-[#FBF9F6] border border-[#A67C52]/10 px-6 py-2 rounded-full shadow-inner">
