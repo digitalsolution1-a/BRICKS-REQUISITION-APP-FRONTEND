@@ -14,7 +14,6 @@ const HODDashboard = () => {
   const [selectedReq, setSelectedReq] = useState(null); 
   const [hodComment, setHodComment] = useState('');
 
-  // NATIVE PWA STATES
   const [showProfile, setShowProfile] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     Notification.permission === 'granted'
@@ -43,8 +42,10 @@ const HODDashboard = () => {
       ]);
 
       const queueData = Array.isArray(queueRes.data) ? queueRes.data : [];
+      const historyData = Array.isArray(historyRes.data) ? historyRes.data : [];
+      
       setRequisitions(queueData);
-      setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      setHistory(historyData);
 
       if ('setAppBadge' in navigator) {
         queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
@@ -156,7 +157,6 @@ const HODDashboard = () => {
         </div>
       </nav>
 
-      {/* PROFILE DROPDOWN */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -235,7 +235,7 @@ const HODDashboard = () => {
             </>
           ) : (
             <RequisitionHistory 
-              requisitions={filterList(history).filter(req => req.dept === user.dept || req.department === user.dept)} 
+              requisitions={filterList(history)} 
             />
           )}
         </div>
@@ -254,8 +254,8 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              {/* INFO GRID - UPDATED TO 5 COLUMNS FOR ACCOUNT DETAILS */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+              {/* ROW 1: CORE DETAILS */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
                   <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
@@ -272,11 +272,29 @@ const HODDashboard = () => {
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
                   <p className="text-xs font-black text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
                 </div>
-                {/* --- NEW FIELD: ACCOUNT DETAILS --- */}
+              </div>
+
+              {/* ROW 2: NEWLY ADDED FIELDS + CORRECTED ACCOUNT DETAILS */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.poNumber || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">DA Ref No</p>
+                  <p className="text-xs font-black text-gray-800">{selectedReq.daRefNo || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
+                  <p className={`text-xs font-black ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {selectedReq.clientPaymentStatus || 'N/A'}
+                  </p>
+                </div>
                 <div className="bg-gray-900 p-4 rounded-2xl border border-[#A67C52]/30">
                   <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
                   <p className="text-[10px] font-bold text-white break-words leading-tight">
-                    {selectedReq.accountDetails || 'NOT PROVIDED'}
+                    {/* FIXED: Using beneficiaryDetails to match submission field */}
+                    {selectedReq.beneficiaryDetails || selectedReq.accountDetails || 'NOT PROVIDED'}
                   </p>
                 </div>
               </div>
