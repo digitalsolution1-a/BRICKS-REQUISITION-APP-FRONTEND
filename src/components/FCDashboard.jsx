@@ -168,7 +168,7 @@ const FCDashboard = () => {
             <p className="text-[9px] font-bold text-[#A67C52]">Department: Finance</p>
           </div>
           <div className="space-y-2 pt-4 border-t border-gray-50">
-             <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all">TERMINATE SESSION</button>
+             <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all">SIGN OUT</button>
           </div>
         </div>
       )}
