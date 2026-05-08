@@ -163,7 +163,7 @@ const AccountantDashboard = () => {
             <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">TREASURY ACCESS: ACTIVE</p>
           </div>
           <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
-            End Session
+            SIGN OUT
           </button>
         </div>
       )}
@@ -175,7 +175,7 @@ const AccountantDashboard = () => {
               {view === 'queue' ? 'Accounts ' : 'Disbursement '}<span className="text-[#A67C52]">{view === 'queue' ? 'Ledger' : 'Archive'}</span>
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3 underline decoration-[#A67C52] decoration-2 underline-offset-4">
-              {view === 'queue' ? `Disbursement Queue (${requisitions.length})` : `Total Records (${history.length})`}
+              {view === 'queue' ? `Upload Queue (${requisitions.length})` : `Total Records (${history.length})`}
             </p>
           </div>
           
