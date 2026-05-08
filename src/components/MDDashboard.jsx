@@ -168,7 +168,7 @@ const MDDashboard = () => {
           </div>
           <div className="space-y-2 border-t border-gray-50 pt-4">
             <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all">
-              TERMINATE SESSION
+              SIGN OUT
             </button>
           </div>
         </div>
@@ -179,7 +179,7 @@ const MDDashboard = () => {
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic leading-none">MD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
-              <button onClick={() => setActiveTab('pending')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'pending' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>PENDING QUEUE</button>
+              <button onClick={() => setActiveTab('pending')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'pending' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>PENDING APPROVAL</button>
               <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>APPROVAL HISTORY</button>
             </div>
           </div>
