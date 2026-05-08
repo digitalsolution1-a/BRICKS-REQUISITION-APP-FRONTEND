@@ -318,7 +318,7 @@ function RequisitionForm() {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Justification Narrative</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Request Narrative</label>
               <textarea name="requestNarrative" required className="w-full border-2 border-gray-50 p-6 rounded-[2rem] outline-none focus:border-[#A67C52] bg-gray-50 font-bold text-sm leading-relaxed" rows="4" placeholder="Detail the technical or operational need for this request..." onChange={handleInputChange}></textarea>
             </div>
 
