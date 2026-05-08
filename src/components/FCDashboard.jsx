@@ -187,7 +187,7 @@ const FCDashboard = () => {
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none italic">FC <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
-              <button onClick={() => setActiveTab('queue')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>PENDING VETTING ({requisitions.length})</button>
+              <button onClick={() => setActiveTab('queue')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>PENDING REVIEW ({requisitions.length})</button>
               <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>VETTING HISTORY ({history.length})</button>
             </div>
           </div>
@@ -216,7 +216,7 @@ const FCDashboard = () => {
                       <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase italic">Vendor: {req.vendorName || "General"}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">VET REQUEST</button>
+                  <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">REVIEW REQUEST</button>
                 </div>
               ))}
               {filterList(requisitions).length === 0 && (
@@ -237,7 +237,7 @@ const FCDashboard = () => {
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">Financial Vetting</h3>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">FC Review</h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Analyzing ID: #{selectedReq._id.slice(-6)}</p>
                 </div>
                 <button onClick={handleCloseModal} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
