@@ -23,6 +23,11 @@ function RequisitionForm() {
     procurementType: 'Direct Procurement',
     vendorName: '',
     otherVendor: '',
+    // --- NEW OPTIONAL FIELDS ---
+    poNumber: '',
+    daRefNo: '',
+    clientPaymentStatus: '',
+    // ---------------------------
     modeOfPayment: 'Cash',
     beneficiaryDetails: '', 
     currency: 'NGN',
@@ -32,10 +37,9 @@ function RequisitionForm() {
     dueDate: '',
     requestNarrative: '',
     department: user?.department || user?.dept || '',
-    hodForApproval: '', // This will map to hodEmail in backend
+    hodForApproval: '', 
   });
 
-  // Sync user info if it loads late
   useEffect(() => {
     if (user) {
       setFormData(prev => ({
@@ -61,12 +65,9 @@ function RequisitionForm() {
 
     const data = new FormData();
     
-    // --- ROUTING LOGIC ---
-    // We set currentStage to HOD and pass the hodEmail so the HOD can see it.
     data.append('currentStage', 'HOD');
     data.append('hodEmail', formData.hodForApproval); 
     
-    // --- FORM DATA ---
     data.append('requester', formData.requester);
     data.append('requesterName', formData.requesterName);
     data.append('requesterEmail', formData.requesterEmail);
@@ -79,6 +80,13 @@ function RequisitionForm() {
     data.append('otherClient', formData.otherClient);
     data.append('vendorName', formData.vendorName);
     data.append('otherVendor', formData.otherVendor);
+
+    // --- APPENDING NEW FIELDS ---
+    data.append('poNumber', formData.poNumber);
+    data.append('daRefNo', formData.daRefNo);
+    data.append('clientPaymentStatus', formData.clientPaymentStatus);
+    // ----------------------------
+
     data.append('modeOfPayment', formData.modeOfPayment);
     data.append('beneficiaryDetails', formData.beneficiaryDetails || 'N/A');
     data.append('currency', formData.currency);
@@ -219,6 +227,46 @@ function RequisitionForm() {
                 )}
               </div>
             </div>
+
+            {/* --- ADDED OPTIONAL FIELDS SECTION --- */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-orange-100/50">
+                <div className="flex flex-col">
+                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">P.O Number</label>
+                    <input 
+                        type="text" 
+                        name="poNumber" 
+                        value={formData.poNumber}
+                        placeholder="Optional" 
+                        className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
+                        onChange={handleInputChange} 
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">DA Ref No</label>
+                    <input 
+                        type="text" 
+                        name="daRefNo" 
+                        value={formData.daRefNo}
+                        placeholder="Optional" 
+                        className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
+                        onChange={handleInputChange} 
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Payment Status</label>
+                    <select 
+                        name="clientPaymentStatus" 
+                        value={formData.clientPaymentStatus}
+                        className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
+                        onChange={handleInputChange}
+                    >
+                        <option value="">Select (Optional)</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Not-paid">Not-paid</option>
+                    </select>
+                </div>
+            </div>
+            {/* -------------------------------------- */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
