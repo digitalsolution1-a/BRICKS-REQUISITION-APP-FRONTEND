@@ -89,7 +89,7 @@ const Login = () => {
           {/* PASSWORD FIELD WITH TOGGLE */}
           <div className="space-y-2 relative">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              Secure Password
+              Password
             </label>
             <div className="relative">
               <input 
