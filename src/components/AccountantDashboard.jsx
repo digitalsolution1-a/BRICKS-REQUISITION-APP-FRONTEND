@@ -3,7 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import RequisitionHistory from '../components/RequisitionHistory';
-import AttachmentViewer from '../components/AttachmentViewer'; // Assuming this component exists
+import AttachmentViewer from '../components/AttachmentViewer';
 
 const AccountantDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
@@ -11,7 +11,7 @@ const AccountantDashboard = () => {
   const [view, setView] = useState('queue'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedReq, setSelectedReq] = useState(null); // Track requisition for modal review
+  const [selectedReq, setSelectedReq] = useState(null); 
   
   const [showProfile, setShowProfile] = useState(false);
 
@@ -65,6 +65,7 @@ const AccountantDashboard = () => {
 
   const filterList = (list) => {
     const data = Array.isArray(list) ? list : [];
+    if (!searchTerm) return data;
     return data.filter(req => 
       req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -103,8 +104,8 @@ const AccountantDashboard = () => {
       });
 
       toast.success("TREASURY RECORD UPDATED", { id: loadingToast });
-      setSelectedReq(null); // Close modal
-      fetchData(); // Refresh both lists
+      setSelectedReq(null);
+      fetchData();
     } catch (err) {
       toast.error("Update failed", { id: loadingToast });
     }
@@ -240,7 +241,7 @@ const AccountantDashboard = () => {
       {/* DISBURSEMENT MODAL */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
@@ -248,6 +249,24 @@ const AccountantDashboard = () => {
                   <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Final Treasury Verification: #{selectedReq._id.slice(-6)}</p>
                 </div>
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
+              </div>
+
+              {/* NEW FIELDS ROW */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                  <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">P.O Number</p>
+                  <p className="text-xs font-bold tracking-widest">{selectedReq.poNumber || 'NOT ASSIGNED'}</p>
+                </div>
+                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                  <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">DA Ref Number</p>
+                  <p className="text-xs font-bold tracking-widest">{selectedReq.daRefNo || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                  <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">Client Payment Status</p>
+                  <p className={`text-xs font-bold tracking-widest ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-400' : 'text-orange-400'}`}>
+                    {selectedReq.clientPaymentStatus || 'PENDING'}
+                  </p>
+                </div>
               </div>
 
               {/* EXECUTIVE INSTRUCTION HIGHLIGHT */}
