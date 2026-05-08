@@ -15,7 +15,7 @@ const RequisitionHistory = ({ requisitions }) => {
   return (
     <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden mt-8">
       <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-        <h2 className="text-gray-800 font-black text-sm tracking-widest uppercase italic">Transaction History</h2>
+        <h2 className="text-gray-800 font-black text-sm tracking-widest uppercase italic">Request History</h2>
         <span className="bg-green-50 text-green-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">
           {historyItems.length} Archive Records
         </span>
