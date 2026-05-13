@@ -239,7 +239,7 @@ function RequisitionForm() {
                     </select>
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Payment Status</label>
+                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Payment Status</label>
                     <select name="clientPaymentStatus" value={formData.clientPaymentStatus} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                         <option value="N/A">N/A</option>
                         <option value="Paid">Paid</option>
