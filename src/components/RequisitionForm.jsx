@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DEPARTMENTS, HOD_EMAILS } from '../utils/constants';
 
-const CLIENTS = ["Chairborne", "ERDIS", "Hadnuvo", "SouthCoast", "OIS", "Penguin PTE", "Bruhat Logistics", "Sangfroid", "BA Ports", "ARC", "GreenSwift", "Others"];
-const VENDORS = ["RICHE INTEGRATED TECHNOLOGY", "DAM JEDA SERVICES", "SCENTECH MECHANICAL SOLUTUION", "TECHRADAR", "PGOR GLOBAL SERVICES", "CABRIK MARINE", "FIELDBASE", "YUBATECH", "YEMOT GLOBAL", "JEMMATELIZ GLOBAL SERVICES", "ALADE MARINE SERVICES", "ECA OILFIELD & INDUSTRIAL SERVICES LTD", "A-Z TECHNICAL SOLUTION", "ROPETECH ENGINEERING SERVICES", "GRAFFINS GLOBAL SERVICES", "KADGO NIGERIA LIMITED", "MARINETECH SERVICES LIMITED", "VIC-DON INTERNATIONAL CO. LTD", "FARDEZZ INTEGRATED SERVICES", "MAJIMA LOGISTICS SERVICES", "OAK SAGE SERVICES", "VIVYKEN VENTURE", "MARSHALL SHIELD SERVICES", "MAXELO INTEGRATED SERVICS", "ONE MINE PLUMBING SERVICES", "TRAVICES NIGERIA LIMITED", "MANTRAC NIGERIA LIMITED", "USMAN STORES", "AEROPORT TRAVELS & TOURS LTD", "BLUWIN SERVICES", "OTHERS"];
+const CLIENTS = ["N/A", "Chairborne", "ERDIS", "Hadnuvo", "SouthCoast", "OIS", "Penguin PTE", "Bruhat Logistics", "Sangfroid", "BA Ports", "ARC", "GreenSwift", "Others"];
+const VENDORS = ["N/A", "RICHE INTEGRATED TECHNOLOGY", "DAM JEDA SERVICES", "SCENTECH MECHANICAL SOLUTUION", "TECHRADAR", "PGOR GLOBAL SERVICES", "CABRIK MARINE", "FIELDBASE", "YUBATECH", "YEMOT GLOBAL", "JEMMATELIZ GLOBAL SERVICES", "ALADE MARINE SERVICES", "ECA OILFIELD & INDUSTRIAL SERVICES LTD", "A-Z TECHNICAL SOLUTION", "ROPETECH ENGINEERING SERVICES", "GRAFFINS GLOBAL SERVICES", "KADGO NIGERIA LIMITED", "MARINETECH SERVICES LIMITED", "VIC-DON INTERNATIONAL CO. LTD", "FARDEZZ INTEGRATED SERVICES", "MAJIMA LOGISTICS SERVICES", "OAK SAGE SERVICES", "VIVYKEN VENTURE", "MARSHALL SHIELD SERVICES", "MAXELO INTEGRATED SERVICS", "ONE MINE PLUMBING SERVICES", "TRAVICES NIGERIA LIMITED", "MANTRAC NIGERIA LIMITED", "USMAN STORES", "AEROPORT TRAVELS & TOURS LTD", "BLUWIN SERVICES", "OTHERS"];
+
+const DA_REFS = [
+  "N/A", "BRICKS/OIS/C-MGT/0001/26", "BRICKS/PSA/TS/0002/26", "BRICKS/HML/SM-MVK/0003/26", "BRICKS/HML/SM-MVS/0004/26", "BRICKS/IKJP/RM/0005/26", "BRICKS/DW/SL/0006/26", "BRICKS/OP/SL/0007/26", "BRICKS/OIS/TS/0008/26", "BRICKS/HML/SL/0009/26", "BRICKS/OIS/CM/0010/26", "BRICKS/OIS/DS-CM/0011/26", "BRICKS/OIS/OT-CM/0012/26", "BRICKS/OIS/EX-CM/0013/26", "BRICKS/OIS/KD-CM/0014/26", "BRICKS/DRW/0015/26", "BRICKS/ARC/V-SEC/0016/26", "BRICKS/SCM/V-REG/0017/26", "BRICKS/SCM/VB/0018/26", "BRICKS/ARC/VS-STI/0019/26", "BRICKS/ARC/VS-ALS/0020/26", "BRICKS/SCM/CM/0021/26", "BRICKS/ARC/VS-RE/0022/26", "BRICKS/ARC/VS-TH/0023/26", "BRICKS/SCM/CM/0024/26", "BRICKS/SBS/TP/0025/26", "BRICKS/NSA/V-REG/0026/26", "BRICKS/ARC/VS-MTA/0027/26", "BRICKS/ARC/VS-HI/0028/26", "BRICKS/ARC/VS-TC/0029/26", "BRICKS/SCM/SM/0030/26", "BRICKS/AMANO/0031/26", "BRICKS/ARC/VS-MVC/0032/26", "BRICKS/NIMASA/TS-MTA/0033/26", "BRICKS/ARC/VS-PB/0034/26", "BRICKS/SCM/LOG/0035/26", "BRICKS/ARC/VS-PB/0036/26", "BRICKS/ARC/VS-AB/0037/26", "BRICKS/VS/0038/26", "BRICKS/PSA/PM/0039/26", "BRICKS/ARC/VS/0040/26", "BRICKS/OIS/PE/0041/26", "BRICKS/OP/V-REG/0042/26", "BRICKS/DS/V-REG/0043/26", "BRICKS/ARC/VS-MR/0044/26", "BRICKS/ARC/VS-XG/0045/26", "BRICKS/ARC/VS-STIM/0046/26", "BRICKS/ARC/VS-MVMC/0047/26", "BRICKS/ARC/VS-HP/0048/26", "BRICKS/ACSA/LS/0049/26", "BRICKS/NSA/TS/0050/26", "BRICKS/ARC/VS-CE/0051/26", "Bricks/ARC/VS-SE/0052/26", "BRICKS/ARC/VS-MC/0053/26", "BRICKS/ARC/VS-MVC/0054/26", "BRICKS/ARC/K9-MVC/0055/26", "BRICKS/ARC/VS-MTSA/0056/26", "BRICKS/UNP/PM/0057/26", "BRICKS/MRS/MS/0058/26", "BRICKS/ARC/VS-NE/0059/26", "BRICKS/TL/IWL/0060/26", "BRICKS/OIS/V-LOG/0061/26", "BRICKS/ARC/VS-CS/0062/26", "BRICK/DFSL/TS/0063/26", "BRICKS/ARC/VS /IWL/0064/26", "BRICKS/BTS/PF/0065/26", "BRICK/DFSL/VC/0066/26", "BRICKS/NSA/LOG/0067/26", "BRICKS/ESS/TS/0068/26", "BRICKS/OIS/OTV-REG/0069/26", "BRICKS/OIS/DSV-REG/0070/26", "BRICKS/ARC/VS-VO/0071/26", "BRICKS/PTML/MS/0072/26", "BRICKS/PCHS/MS/0073/26", "BRICKS/ARC/VS- GB/0074/26", "BRICKS/OIS/DEL/0075/26", "BRICKS/ARC/VS-MS/0076/26", "BRICKS/ARC/VS-BE/0077/26", "BRICKS/BMS/MS/0078/26", "BRICKS/ARC/VS-SB/0079/26", "BRICKS/OIS/DS-TS/0080/26", "BRICKS/RMS/TS/0081/26", "BRICK/PO/VC/0082/26", "BRICKS/SML/V-REG/0083/26", "BRICKS/HML/S-REG/0084/26", "BRICKS/SML/V-SEC/0085/26", "BRICKS/PHL/OPEX/0086/26", "BRICKS/NIMASA/PRJT/0087/26", "BRICKS/CGSL/V-REG/0089/26", "BRICKS/CP/JM/0090/26", "BRICKS/OS/LOG/0091/26", "BRICKS/FMCL/IWL/0092/26", "BRICKS/BAP/LOG/0093/26", "BRICKS/CGSL/SM/0094/26", "BRICKS/PSA/LOG/0095/26", "BRICKS/SEPLAT-SPY-P/LOG/0096/26", "BRICKS/VP/PFSS/0097/26", "BRICKS/ERDIS/TE-SM/0100/26", "BRICKS/ADMIN-OFF.EXP/01002/26", "BRICKS/ADM-INT.P/01003/26", "BRICKS/ADM-DOC-REN/01004/26", "BRICKS/ADM-DOC-REG/01005/26"
+];
 
 function RequisitionForm() {
   const [loading, setLoading] = useState(false);
@@ -23,11 +27,10 @@ function RequisitionForm() {
     procurementType: 'Direct Procurement',
     vendorName: '',
     otherVendor: '',
-    // --- NEW OPTIONAL FIELDS ---
     poNumber: '',
-    daRefNo: '',
-    clientPaymentStatus: '',
-    // ---------------------------
+    daRefNo: 'N/A',
+    invoiceNo: '', // NEW FIELD
+    clientPaymentStatus: 'N/A',
     modeOfPayment: 'Cash',
     beneficiaryDetails: '', 
     currency: 'NGN',
@@ -64,10 +67,8 @@ function RequisitionForm() {
     setLoading(true);
 
     const data = new FormData();
-    
     data.append('currentStage', 'HOD');
     data.append('hodEmail', formData.hodForApproval); 
-    
     data.append('requester', formData.requester);
     data.append('requesterName', formData.requesterName);
     data.append('requesterEmail', formData.requesterEmail);
@@ -80,13 +81,10 @@ function RequisitionForm() {
     data.append('otherClient', formData.otherClient);
     data.append('vendorName', formData.vendorName);
     data.append('otherVendor', formData.otherVendor);
-
-    // --- APPENDING NEW FIELDS ---
     data.append('poNumber', formData.poNumber);
     data.append('daRefNo', formData.daRefNo);
+    data.append('invoiceNo', formData.invoiceNo); // SENDING NEW FIELD
     data.append('clientPaymentStatus', formData.clientPaymentStatus);
-    // ----------------------------
-
     data.append('modeOfPayment', formData.modeOfPayment);
     data.append('beneficiaryDetails', formData.beneficiaryDetails || 'N/A');
     data.append('currency', formData.currency);
@@ -122,7 +120,6 @@ function RequisitionForm() {
     <div className="min-h-screen bg-[#f8f9fa] py-12 px-4">
       <div className="max-w-4xl mx-auto bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         
-        {/* Header Section */}
         <div className="bg-[#A67C52] p-10 text-white flex justify-between items-center shadow-lg">
           <div>
             <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION</h1>
@@ -136,7 +133,6 @@ function RequisitionForm() {
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
           
-          {/* Section 1: Staff Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
@@ -162,7 +158,6 @@ function RequisitionForm() {
             </div>
           </div>
 
-          {/* Section 2: Core Routing */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Request Option</label>
@@ -192,6 +187,7 @@ function RequisitionForm() {
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Request Type</label>
                 <select name="requestType" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                  <option value="N/A">N/A</option>
                   <option value="Internal Operation/Request">Internal Operation/Request</option>
                   <option value="Client Service Request">Client Service Request (Third-Party)</option>
                 </select>
@@ -199,6 +195,7 @@ function RequisitionForm() {
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Procurement Type</label>
                 <select name="procurementType" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                  <option value="N/A">N/A</option>
                   <option value="Direct Procurement">Direct Procurement</option>
                   <option value="Vendor Procurement">Vendor Procurement</option>
                 </select>
@@ -209,7 +206,6 @@ function RequisitionForm() {
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Assignment</label>
                 <select name="clientName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                  <option value="">N/A / Internal</option>
                   {CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 {formData.clientName === 'Others' && (
@@ -219,7 +215,6 @@ function RequisitionForm() {
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Vendor</label>
                 <select name="vendorName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                  <option value="">Choose Vendor</option>
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
                 {formData.vendorName === 'OTHERS' && (
@@ -228,45 +223,30 @@ function RequisitionForm() {
               </div>
             </div>
 
-            {/* --- ADDED OPTIONAL FIELDS SECTION --- */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-orange-100/50">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-orange-100/50">
                 <div className="flex flex-col">
                     <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">P.O Number</label>
-                    <input 
-                        type="text" 
-                        name="poNumber" 
-                        value={formData.poNumber}
-                        placeholder="Optional" 
-                        className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
-                        onChange={handleInputChange} 
-                    />
+                    <input type="text" name="poNumber" value={formData.poNumber} placeholder="Optional" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Invoice No.</label>
+                    <input type="text" name="invoiceNo" value={formData.invoiceNo} placeholder="Optional" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} />
                 </div>
                 <div className="flex flex-col">
                     <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">DA Ref No</label>
-                    <input 
-                        type="text" 
-                        name="daRefNo" 
-                        value={formData.daRefNo}
-                        placeholder="Optional" 
-                        className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
-                        onChange={handleInputChange} 
-                    />
+                    <select name="daRefNo" value={formData.daRefNo} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                        {DA_REFS.map(ref => <option key={ref} value={ref}>{ref}</option>)}
+                    </select>
                 </div>
                 <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Payment Status</label>
-                    <select 
-                        name="clientPaymentStatus" 
-                        value={formData.clientPaymentStatus}
-                        className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" 
-                        onChange={handleInputChange}
-                    >
-                        <option value="">Select (Optional)</option>
+                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Payment Status</label>
+                    <select name="clientPaymentStatus" value={formData.clientPaymentStatus} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                        <option value="N/A">N/A</option>
                         <option value="Paid">Paid</option>
                         <option value="Not-paid">Not-paid</option>
                     </select>
                 </div>
             </div>
-            {/* -------------------------------------- */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -308,13 +288,7 @@ function RequisitionForm() {
           <div className="space-y-8">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Beneficiary Details / Account info</label>
-              <input 
-                type="text" 
-                name="beneficiaryDetails" 
-                placeholder="Name, Bank, Account Number" 
-                className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" 
-                onChange={handleInputChange} 
-              />
+              <input type="text" name="beneficiaryDetails" placeholder="Name, Bank, Account Number" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange} />
             </div>
 
             <div className="flex flex-col">
@@ -333,12 +307,7 @@ function RequisitionForm() {
             </div>
           </div>
 
-          <button 
-            disabled={loading} 
-            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-white shadow-2xl transition-all flex items-center justify-center gap-3 ${
-              loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black active:scale-95'
-            }`}
-          >
+          <button disabled={loading} className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-white shadow-2xl transition-all flex items-center justify-center gap-3 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black active:scale-95'}`}>
             {loading ? 'Syncing...' : 'Submit Requisition'}
           </button>
 
