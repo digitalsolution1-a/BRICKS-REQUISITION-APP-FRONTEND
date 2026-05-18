@@ -47,35 +47,46 @@ function StaffDashboard() {
     navigate('/');
   };
 
-  // Helper function to return dynamic Tailwind styling and text formatting depending on the status stage
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Pending':
-        return 'bg-orange-50 text-orange-500 border border-orange-100';
+  // Helper function to return dynamic Tailwind styling depending on the active stage/status
+  const getStatusBadge = (status, currentStage) => {
+    if (status === 'Declined' || status === 'Rejected') {
+      return 'bg-red-50 text-red-500 border border-red-100';
+    }
+    if (status === 'Paid') {
+      return 'bg-green-50 text-green-600 border border-green-100';
+    }
+
+    // Evaluate active phase workflow positioning
+    const stage = String(currentStage).toUpperCase();
+    switch (stage) {
       case 'HOD':
         return 'bg-amber-50 text-amber-700 border border-amber-200';
       case 'FC':
         return 'bg-blue-50 text-blue-600 border border-blue-200';
       case 'MD':
         return 'bg-purple-50 text-purple-600 border border-purple-200';
-      case 'Accountant':
+      case 'ACCOUNTS':
+      case 'ACCOUNTANT':
         return 'bg-teal-50 text-teal-600 border border-teal-200';
-      case 'Approved':
-      case 'Paid':
-        return 'bg-green-50 text-green-600 border border-green-100';
-      case 'Declined':
-        return 'bg-red-50 text-red-500 border border-red-100';
       default:
-        return 'bg-gray-50 text-gray-500 border border-gray-100';
+        return 'bg-orange-50 text-orange-500 border border-orange-100';
     }
   };
 
-  const formatStatusText = (status) => {
-    if (['HOD', 'FC', 'MD', 'Accountant'].includes(status)) {
-      return `WITH ${status}`;
+  // Format tracking string outputs cleanly to the user interface
+  const formatStatusText = (status, currentStage) => {
+    if (status === 'Declined' || status === 'Rejected') return 'DECLINED';
+    if (status === 'Paid') return 'PAID';
+
+    const stage = String(currentStage).toUpperCase();
+    if (stage === 'ACCOUNTS' || stage === 'ACCOUNTANT') {
+      return 'WITH ACCOUNTANT';
     }
-    if (status === 'Approved') return 'PROCESSING';
-    return status;
+    if (['HOD', 'FC', 'MD'].includes(stage)) {
+      return `WITH ${stage}`;
+    }
+    
+    return status === 'Approved' ? 'PROCESSING' : status;
   };
 
   if (loading) return (
@@ -196,8 +207,8 @@ function StaffDashboard() {
                           {req.currency} {req.amount.toLocaleString()}
                         </td>
                         <td className="py-6">
-                          <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status)}`}>
-                            {formatStatusText(req.status)}
+                          <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status, req.currentStage)}`}>
+                            {formatStatusText(req.status, req.currentStage)}
                           </span>
                         </td>
                         <td className="py-6 text-right flex justify-end gap-3 items-center">
@@ -209,8 +220,8 @@ function StaffDashboard() {
                             <span className="text-sm">📄</span>
                           </button>
 
-                          {/* Only show edit button if the request is untouched or at the lowest state */}
-                          {(req.status === 'Pending' || req.status === 'HOD') && (
+                          {/* Editable state locked exclusively to early-stage submissions */}
+                          {req.status === 'Pending' && String(req.currentStage).toUpperCase() === 'HOD' && (
                             <button 
                               onClick={() => navigate(`/edit-requisition/${req._id}`)}
                               className="bg-black text-white px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#A67C52] transition-all shadow-lg active:scale-95"
