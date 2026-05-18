@@ -47,6 +47,37 @@ function StaffDashboard() {
     navigate('/');
   };
 
+  // Helper function to return dynamic Tailwind styling and text formatting depending on the status stage
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Pending':
+        return 'bg-orange-50 text-orange-500 border border-orange-100';
+      case 'HOD':
+        return 'bg-amber-50 text-amber-700 border border-amber-200';
+      case 'FC':
+        return 'bg-blue-50 text-blue-600 border border-blue-200';
+      case 'MD':
+        return 'bg-purple-50 text-purple-600 border border-purple-200';
+      case 'Accountant':
+        return 'bg-teal-50 text-teal-600 border border-teal-200';
+      case 'Approved':
+      case 'Paid':
+        return 'bg-green-50 text-green-600 border border-green-100';
+      case 'Declined':
+        return 'bg-red-50 text-red-500 border border-red-100';
+      default:
+        return 'bg-gray-50 text-gray-500 border border-gray-100';
+    }
+  };
+
+  const formatStatusText = (status) => {
+    if (['HOD', 'FC', 'MD', 'Accountant'].includes(status)) {
+      return `WITH ${status}`;
+    }
+    if (status === 'Approved') return 'PROCESSING';
+    return status;
+  };
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#FBF9F6]">
       <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-[#A67C52] mb-4"></div>
@@ -110,7 +141,7 @@ function StaffDashboard() {
             <div className="relative z-10">
               <h2 className="text-3xl font-black leading-none uppercase tracking-tighter italic">Create <br/> <span className="text-black">Request</span></h2>
               <p className="text-orange-100 text-[10px] mt-6 opacity-80 uppercase tracking-widest font-black leading-loose">
-                Submit your requistion details for departmental review and MD approval.
+                Submit your requisition details for departmental review and MD approval.
               </p>
             </div>
             <Link 
@@ -165,13 +196,8 @@ function StaffDashboard() {
                           {req.currency} {req.amount.toLocaleString()}
                         </td>
                         <td className="py-6">
-                          <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${
-                            req.status === 'Pending' ? 'bg-orange-50 text-orange-500 border border-orange-100' : 
-                            req.status === 'Paid' ? 'bg-green-50 text-green-600 border border-green-100' :
-                            req.status === 'Declined' ? 'bg-red-50 text-red-500 border border-red-100' : 
-                            'bg-gray-50 text-gray-500 border border-gray-100'
-                          }`}>
-                            {req.status === 'Approved' ? 'PROCESSING' : req.status}
+                          <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status)}`}>
+                            {formatStatusText(req.status)}
                           </span>
                         </td>
                         <td className="py-6 text-right flex justify-end gap-3 items-center">
@@ -183,7 +209,8 @@ function StaffDashboard() {
                             <span className="text-sm">📄</span>
                           </button>
 
-                          {req.status === 'Pending' && (
+                          {/* Only show edit button if the request is untouched or at the lowest state */}
+                          {(req.status === 'Pending' || req.status === 'HOD') && (
                             <button 
                               onClick={() => navigate(`/edit-requisition/${req._id}`)}
                               className="bg-black text-white px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#A67C52] transition-all shadow-lg active:scale-95"
