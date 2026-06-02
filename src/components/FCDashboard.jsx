@@ -260,7 +260,7 @@ const FCDashboard = () => {
                       <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase italic">Vendor: {req.vendorName || "General"}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-gray-900 text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">VIEW DOSSIER</button>
+                  <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-gray-900 text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">VIEW</button>
                 </div>
               ))}
               {filterList(allDepartments).length === 0 && (
