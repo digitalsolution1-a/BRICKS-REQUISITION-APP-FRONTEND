@@ -125,7 +125,7 @@ const AccountantDashboard = () => {
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F7F9]">
       <div className="animate-spin h-10 w-10 border-t-4 border-[#A67C52] border-solid rounded-full mb-4"></div>
-      <p className="text-[10px] font-black text-gray-400 tracking-[0.3em] uppercase">Syncing Treasury Ledger...</p>
+      <p className="text-[10px] font-black text-gray-400 tracking-[0.3em] uppercase">Syncing Accounts...</p>
     </div>
   );
 
