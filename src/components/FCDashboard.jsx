@@ -8,6 +8,7 @@ import RequisitionHistory from '../components/RequisitionHistory';
 const FCDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
   const [history, setHistory] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('queue'); 
@@ -35,18 +36,21 @@ const FCDashboard = () => {
     if (!token) return navigate('/');
     try {
       setLoading(true);
-      const [queueRes, historyRes] = await Promise.all([
+      const [queueRes, historyRes, allDepartmentsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        // Assuming history endpoint for FC returns relevant vetted records
         axios.get(`${API_BASE_URL}/requisitions/history`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/requisitions/all`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] }))
       ]);
 
       setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      setAllDepartments(Array.isArray(allDepartmentsRes.data) ? allDepartmentsRes.data : []);
 
       if ('setAppBadge' in navigator) {
         queueRes.data?.length > 0 ? navigator.setAppBadge(queueRes.data.length) : navigator.clearAppBadge();
@@ -95,7 +99,11 @@ const FCDashboard = () => {
   };
 
   const exportToExcel = () => {
-    const dataToExport = activeTab === 'queue' ? filterList(requisitions) : filterList(history);
+    let dataToExport = [];
+    if (activeTab === 'queue') dataToExport = filterList(requisitions);
+    else if (activeTab === 'history') dataToExport = filterList(history);
+    else dataToExport = filterList(allDepartments);
+
     if (dataToExport.length === 0) return toast.error("No data to export");
     const headers = "ID,Date,Requester,Department,Vendor,Amount,Currency,Status\n";
     const data = dataToExport.map(r => 
@@ -123,7 +131,14 @@ const FCDashboard = () => {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success(action === 'Approved' ? 'FORWARDED TO MD' : 'DECLINED', { id: loadingToast });
+      
+      // Dynamic Toast depending on context
+      if (activeTab === 'all' && action === 'Approved') {
+        toast.success('LOG MEMO SAVED', { id: loadingToast });
+      } else {
+        toast.success(action === 'Approved' ? 'FORWARDED TO MD' : 'DECLINED', { id: loadingToast });
+      }
+      
       handleCloseModal();
       fetchData(); 
     } catch (err) {
@@ -180,6 +195,7 @@ const FCDashboard = () => {
             <div className="flex gap-6 mt-6">
               <button onClick={() => setActiveTab('queue')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>PENDING REVIEW ({requisitions.length})</button>
               <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>VETTING HISTORY ({history.length})</button>
+              <button onClick={() => setActiveTab('all')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'all' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>ALL DEPARTMENTS ({allDepartments.length})</button>
             </div>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
@@ -189,7 +205,7 @@ const FCDashboard = () => {
         </div>
 
         <div className="grid gap-4">
-          {activeTab === 'queue' ? (
+          {activeTab === 'queue' && (
             <>
               {filterList(requisitions).map(req => (
                 <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
@@ -216,8 +232,43 @@ const FCDashboard = () => {
                 </div>
               )}
             </>
-          ) : (
+          )}
+
+          {activeTab === 'history' && (
             <RequisitionHistory requisitions={filterList(history)} />
+          )}
+
+          {activeTab === 'all' && (
+            <>
+              {filterList(allDepartments).map(req => (
+                <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
+                      <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
+                      <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                          req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                          req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                        }`}>{req.status}</span>
+                        <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
+                        <span className="text-gray-400 font-bold text-[9px] tracking-widest">{req.department}</span>
+                      </div>
+                      <h3 className="text-xl font-black text-gray-900 leading-none tracking-tight">{req.requesterName}</h3>
+                      <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase italic">Vendor: {req.vendorName || "General"}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => handleOpenVetting(req)} className="w-full md:w-auto bg-gray-900 text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all">VIEW DOSSIER</button>
+                </div>
+              ))}
+              {filterList(allDepartments).length === 0 && (
+                <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
+                  <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase underline decoration-[#A67C52] decoration-2 underline-offset-8">No enterprise files captured</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
@@ -228,7 +279,9 @@ const FCDashboard = () => {
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">FC Review</h3>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
+                    {activeTab === 'all' ? 'Archive File Record' : 'FC Review'}
+                  </h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Analyzing ID: #{selectedReq._id.slice(-6)}</p>
                 </div>
                 <button onClick={handleCloseModal} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
@@ -266,8 +319,8 @@ const FCDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
-                  <p className={`text-xs font-black ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
-                    {selectedReq.clientPaymentStatus || 'N/A'}
+                  <p className={`text-xs font-black ${selectedReq.paymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {selectedReq.paymentStatus || 'N/A'}
                   </p>
                 </div>
                 <div className="bg-gray-900 p-4 rounded-2xl border border-[#A67C52]/30">
@@ -304,16 +357,24 @@ const FCDashboard = () => {
               </div>
 
               <div className="border-t border-gray-100 pt-8 mt-4 text-left">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">FC Vetting Remarks (Visible to MD)</p>
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">
+                  {activeTab === 'all' ? 'Append Internal Audit Note (Keeps stage unchanged)' : 'FC Vetting Remarks (Visible to MD)'}
+                </p>
                 <textarea 
                   value={fcComment}
                   onChange={(e) => setFcComment(e.target.value)}
-                  placeholder="Verify budget line..."
+                  placeholder={activeTab === 'all' ? "Add audit notes or remarks here..." : "Verify budget line..."}
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
                 />
                 <div className="flex flex-col md:flex-row gap-4">
-                  <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all">FORWARD TO MD</button>
-                  <button onClick={() => handleAction(selectedReq._id, 'Declined')} className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95">DECLINE REQUEST</button>
+                  <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
+                    {activeTab === 'all' ? 'LOG VIEW COMMENT' : 'FORWARD TO MD'}
+                  </button>
+                  {activeTab !== 'all' && (
+                    <button onClick={() => handleAction(selectedReq._id, 'Declined')} className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95">
+                      DECLINE REQUEST
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
