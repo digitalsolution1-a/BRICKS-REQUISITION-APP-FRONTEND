@@ -8,6 +8,7 @@ import AttachmentViewer from '../components/AttachmentViewer';
 const AccountantDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
   const [history, setHistory] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
   const [view, setView] = useState('queue'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,20 +33,25 @@ const AccountantDashboard = () => {
       setLoading(true);
       if (!token) return navigate('/');
 
-      const [queueRes, historyRes] = await Promise.all([
+      const [queueRes, historyRes, allDeptsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/ACCOUNTANT`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API_BASE_URL}/requisitions/history`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/requisitions/all`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] }))
       ]);
       
       const queueData = Array.isArray(queueRes.data) ? queueRes.data : [];
       const historyData = Array.isArray(historyRes.data) ? historyRes.data : [];
+      const allDeptsData = Array.isArray(allDeptsRes.data) ? allDeptsRes.data : [];
 
       setRequisitions(queueData);
       setHistory(historyData);
+      setAllDepartments(allDeptsData);
 
       if ('setAppBadge' in navigator) {
         queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
@@ -75,11 +81,16 @@ const AccountantDashboard = () => {
   };
 
   const exportToCSV = () => {
-    const dataToExport = view === 'queue' ? filterList(requisitions) : filterList(history);
-    if (dataToExport.length === 0) return toast.error("No data to export");
+    let dataToExport = [];
+    if (view === 'queue') dataToExport = requisitions;
+    else if (view === 'history') dataToExport = history;
+    else dataToExport = allDepartments;
+
+    const filteredData = filterList(dataToExport);
+    if (filteredData.length === 0) return toast.error("No data to export");
     
     const headers = "ID,Date,Due Date,Requester,Dept,Vendor,Amount,Currency,Status\n";
-    const rows = dataToExport.map(r => {
+    const rows = filteredData.map(r => {
       return `${r._id},${new Date(r.createdAt).toLocaleDateString()},${new Date(r.dueDate).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`;
     }).join("\n");
 
@@ -131,7 +142,7 @@ const AccountantDashboard = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex bg-white/5 p-1 rounded-xl border border-white/10">
+          <div className="hidden md:flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
             <button 
               onClick={() => setView('queue')}
               className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all ${view === 'queue' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}
@@ -143,6 +154,12 @@ const AccountantDashboard = () => {
               className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all ${view === 'history' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}
             >
               HISTORY
+            </button>
+            <button 
+              onClick={() => setView('all')}
+              className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all ${view === 'all' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}
+            >
+              ALL DEPARTMENTS ({allDepartments.length})
             </button>
           </div>
           <button 
@@ -173,13 +190,20 @@ const AccountantDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
-              {view === 'queue' ? 'Accounts ' : 'Disbursement '}<span className="text-[#A67C52]">{view === 'queue' ? 'Ledger' : 'Archive'}</span>
+              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'Global System '}<span className="text-[#A67C52]">{view === 'all' ? 'Archive' : view === 'queue' ? 'Ledger' : 'Archive'}</span>
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3 underline decoration-[#A67C52] decoration-2 underline-offset-4">
-              {view === 'queue' ? `Upload Queue (${requisitions.length})` : `Total Records (${history.length})`}
+              {view === 'queue' ? `Upload Queue (${requisitions.length})` : view === 'history' ? `Total Records (${history.length})` : `Cross-Department Invoices (${allDepartments.length})`}
             </p>
           </div>
           
+          {/* Dashboard Context Mobile Selector Link */}
+          <div className="flex md:hidden bg-white p-1 rounded-xl border border-gray-200 w-full gap-1 justify-between mb-2">
+            <button onClick={() => setView('queue')} className={`flex-1 py-2 text-center rounded-lg text-[8px] font-black ${view === 'queue' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>QUEUE</button>
+            <button onClick={() => setView('history')} className={`flex-1 py-2 text-center rounded-lg text-[8px] font-black ${view === 'history' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>HISTORY</button>
+            <button onClick={() => setView('all')} className={`flex-1 py-2 text-center rounded-lg text-[8px] font-black ${view === 'all' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>ALL DEPTS</button>
+          </div>
+
           <div className="flex gap-2 w-full md:w-auto">
             <input 
               type="text" 
@@ -194,7 +218,7 @@ const AccountantDashboard = () => {
         </div>
 
         <div className="space-y-6">
-          {view === 'queue' ? (
+          {view === 'queue' && (
             <>
               {filterList(requisitions).map(req => (
                 <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
@@ -232,8 +256,42 @@ const AccountantDashboard = () => {
                 </div>
               )}
             </>
-          ) : (
+          )}
+
+          {view === 'history' && (
             <RequisitionHistory requisitions={filterList(history)} />
+          )}
+
+          {view === 'all' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filterList(allDepartments).map(req => (
+                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                        req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                        req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                      }`}>{req.status}</span>
+                      <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
+                      <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+                    </div>
+                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
+                    className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
+                  >
+                    DOSSIER
+                  </button>
+                </div>
+              ))}
+              {filterList(allDepartments).length === 0 && (
+                <div className="col-span-full py-20 text-center bg-white border-2 border-dashed border-gray-100 rounded-[2.5rem] text-gray-300 text-[10px] font-black italic">
+                  No cross-department system records available.
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>
@@ -245,8 +303,12 @@ const AccountantDashboard = () => {
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">Confirm Disbursement</h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">Final Treasury Verification: #{selectedReq._id.slice(-6)}</p>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
+                    {selectedReq.isArchiveView ? 'System Record Dossier' : 'Confirm Disbursement'}
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">
+                    {selectedReq.isArchiveView ? 'Audit Database Reference' : 'Final Treasury Verification'}: #{selectedReq._id.slice(-6)}
+                  </p>
                 </div>
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
@@ -261,7 +323,7 @@ const AccountantDashboard = () => {
                   <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">DA Ref Number</p>
                   <p className="text-xs font-bold tracking-widest">{selectedReq.daRefNo || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                <div className="bg-gray-990 p-5 rounded-2xl bg-gray-900 border border-[#A67C52]/50 text-white">
                   <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">Client Payment Status</p>
                   <p className={`text-xs font-bold tracking-widest ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-400' : 'text-orange-400'}`}>
                     {selectedReq.clientPaymentStatus || 'PENDING'}
@@ -280,15 +342,15 @@ const AccountantDashboard = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Beneficiary</p>
-                  <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails}</p>
+                  <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
-                  <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment}</p>
+                  <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
-                  <p className="text-[11px] font-black text-red-500">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
+                  <p className="text-[11px] font-black text-red-500">{selectedReq.dueDate ? new Date(selectedReq.dueDate).toLocaleDateString() : 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
@@ -310,13 +372,23 @@ const AccountantDashboard = () => {
                 </div>
               </div>
 
+              {/* ACTION CONTROL ROW */}
               <div className="flex gap-4">
-                 <button 
-                  onClick={() => handlePaymentComplete(selectedReq._id)} 
-                  className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-green-600 transition-all active:scale-95"
-                >
-                  CONFIRM DISBURSEMENT
-                </button>
+                {selectedReq.isArchiveView ? (
+                  <button 
+                    onClick={() => setSelectedReq(null)} 
+                    className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-[#A67C52] transition-all"
+                  >
+                    CLOSE AUDIT PREVIEW
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => handlePaymentComplete(selectedReq._id)} 
+                    className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-green-600 transition-all active:scale-95"
+                  >
+                    CONFIRM DISBURSEMENT
+                  </button>
+                )}
               </div>
             </div>
           </div>
