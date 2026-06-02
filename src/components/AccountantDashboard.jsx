@@ -190,10 +190,10 @@ const AccountantDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
-              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'Global System '}<span className="text-[#A67C52]">{view === 'all' ? 'Archive' : view === 'queue' ? 'Ledger' : 'Archive'}</span>
+              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All'}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Ledger' : 'Archive'}</span>
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3 underline decoration-[#A67C52] decoration-2 underline-offset-4">
-              {view === 'queue' ? `Upload Queue (${requisitions.length})` : view === 'history' ? `Total Records (${history.length})` : `Cross-Department Invoices (${allDepartments.length})`}
+              {view === 'queue' ? `Upload Queue (${requisitions.length})` : view === 'history' ? `Total Records (${history.length})` : `All Requests (${allDepartments.length})`}
             </p>
           </div>
           
