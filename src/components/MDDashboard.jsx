@@ -8,6 +8,7 @@ const MDDashboard = () => {
   const [inbox, setInbox] = useState([]);
   const [backlog, setBacklog] = useState([]);
   const [history, setHistory] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending'); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,7 +37,7 @@ const MDDashboard = () => {
 
     try {
       setLoading(true);
-      const [mdRes, fcRes, historyRes] = await Promise.all([
+      const [mdRes, fcRes, historyRes, allDeptsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/MD`, { 
           headers: { Authorization: `Bearer ${token}` } 
         }),
@@ -45,12 +46,16 @@ const MDDashboard = () => {
         }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/requisitions/history`, { 
           headers: { Authorization: `Bearer ${token}` } 
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/requisitions/all`, { 
+          headers: { Authorization: `Bearer ${token}` } 
         }).catch(() => ({ data: [] }))
       ]);
 
       setInbox(Array.isArray(mdRes.data) ? mdRes.data : []);
       setBacklog(Array.isArray(fcRes.data) ? fcRes.data : []);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      setAllDepartments(Array.isArray(allDeptsRes.data) ? allDeptsRes.data : []);
 
       if ('setAppBadge' in navigator) {
         const total = (mdRes.data?.length || 0) + (fcRes.data?.length || 0);
@@ -92,7 +97,11 @@ const MDDashboard = () => {
   };
 
   const exportData = () => {
-    const dataToExport = activeTab === 'pending' ? [...inbox, ...backlog] : history;
+    let dataToExport = [];
+    if (activeTab === 'pending') dataToExport = [...inbox, ...backlog];
+    else if (activeTab === 'history') dataToExport = history;
+    else dataToExport = allDepartments;
+
     if (dataToExport.length === 0) return toast.error("No data to export");
     const headers = "Date,Department,Staff,Amount,Currency,Vendor,Status\n";
     const csv = dataToExport.map(r => `${new Date(r.createdAt).toLocaleDateString()},${r.department},${r.requesterName},${r.amount},${r.currency},${r.vendorName || 'N/A'},${r.status}`).join("\n");
@@ -116,7 +125,12 @@ const MDDashboard = () => {
         isOverride
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      toast.success(action === 'Approved' ? "AUTHORIZED" : "DECLINED", { id: loadingToast });
+      if (activeTab === 'all' && action === 'Approved') {
+        toast.success("LOG MEMO SAVED", { id: loadingToast });
+      } else {
+        toast.success(action === 'Approved' ? "AUTHORIZED" : "DECLINED", { id: loadingToast });
+      }
+      
       setSelectedReq(null);
       setMdComment('');
       fetchData();
@@ -151,7 +165,7 @@ const MDDashboard = () => {
              </button>
           )}
           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg active:scale-90 transition-all">
-             <span className="text-[10px] font-black">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
+             <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
           </button>
         </div>
       </nav>
@@ -180,6 +194,7 @@ const MDDashboard = () => {
             <div className="flex gap-6 mt-6">
               <button onClick={() => setActiveTab('pending')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'pending' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>PENDING APPROVAL</button>
               <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>APPROVAL HISTORY</button>
+              <button onClick={() => setActiveTab('all')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'all' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>ALL DEPARTMENTS ({allDepartments.length})</button>
             </div>
           </div>
           <div className="flex gap-2 w-full md:w-auto">
@@ -193,7 +208,7 @@ const MDDashboard = () => {
           </div>
         </div>
 
-        {activeTab === 'pending' ? (
+        {activeTab === 'pending' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <section className="space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
@@ -234,8 +249,37 @@ const MDDashboard = () => {
               {backlog.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic">No overrides needed</p>}
             </section>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'history' && (
           <RequisitionHistory requisitions={filterList(history)} />
+        )}
+
+        {activeTab === 'all' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filterList(allDepartments).map(req => (
+              <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                      req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                      req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                    }`}>{req.status}</span>
+                    <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
+                    <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+                  </div>
+                  <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                  <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                </div>
+                <button onClick={() => setSelectedReq({ ...req, isArchiveView: true })} className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
+                  DOSSIER
+                </button>
+              </div>
+            ))}
+            {allDepartments.length === 0 && (
+              <div className="col-span-full text-center py-20 text-gray-300 text-[10px] font-black italic">No historic files recorded</div>
+            )}
+          </div>
         )}
       </main>
 
@@ -246,7 +290,7 @@ const MDDashboard = () => {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
-                    {selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
+                    {selectedReq.isArchiveView ? 'Archive Record Dossier' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
                   </h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
                     ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
@@ -271,8 +315,8 @@ const MDDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
-                  <p className={`text-xs font-black ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
-                    {selectedReq.clientPaymentStatus || 'N/A'}
+                  <p className={`text-xs font-black ${selectedReq.paymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {selectedReq.paymentStatus || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -329,11 +373,13 @@ const MDDashboard = () => {
               </div>
 
               <div className="border-t border-gray-100 pt-8">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">MD Disbursement Instructions</p>
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">
+                  {selectedReq.isArchiveView ? 'Append Audit / Structural Memo' : 'MD Disbursement Instructions'}
+                </p>
                 <textarea 
                   value={mdComment} 
                   onChange={(e) => setMdComment(e.target.value)} 
-                  placeholder={selectedReq.isOverride ? "Provide reason for finance override..." : "Final notes for accounting department..."}
+                  placeholder={selectedReq.isArchiveView ? "Add executive structural notes to history log..." : selectedReq.isOverride ? "Provide reason for finance override..." : "Final notes for accounting department..."}
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
                 />
                 
@@ -342,14 +388,16 @@ const MDDashboard = () => {
                     onClick={() => handleAction(selectedReq._id, 'Approved', selectedReq.isOverride)} 
                     className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    AUTHORIZE PAYMENT
+                    {selectedReq.isArchiveView ? 'LOG VIEW COMMENT' : 'AUTHORIZE PAYMENT'}
                   </button>
-                  <button 
-                    onClick={() => handleAction(selectedReq._id, 'Declined', selectedReq.isOverride)} 
-                    className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95"
-                  >
-                    DECLINE
-                  </button>
+                  {!selectedReq.isArchiveView && (
+                    <button 
+                      onClick={() => handleAction(selectedReq._id, 'Declined', selectedReq.isOverride)} 
+                      className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95"
+                    >
+                      DECLINE
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
