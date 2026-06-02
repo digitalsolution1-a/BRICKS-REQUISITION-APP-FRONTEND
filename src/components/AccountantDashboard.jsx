@@ -178,7 +178,7 @@ const AccountantDashboard = () => {
               {user?.name?.substring(0,2).toUpperCase() || 'AC'}
             </div>
             <h4 className="text-sm font-black text-gray-900 leading-none">{user?.name || 'Accountant'}</h4>
-            <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">TREASURY ACCESS: ACTIVE</p>
+            <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">Account ACCESS: ACTIVE</p>
           </div>
           <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
             SIGN OUT
