@@ -272,7 +272,7 @@ const MDDashboard = () => {
                   <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
                 </div>
                 <button onClick={() => setSelectedReq({ ...req, isArchiveView: true })} className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-                  DOSSIER
+                  VIEW
                 </button>
               </div>
             ))}
@@ -290,7 +290,7 @@ const MDDashboard = () => {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
-                    {selectedReq.isArchiveView ? 'Archive Record Dossier' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
+                    {selectedReq.isArchiveView ? 'ALL REQUEST RECORDS' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
                   </h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
                     ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
