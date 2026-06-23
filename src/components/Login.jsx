@@ -218,7 +218,7 @@ const Login = () => {
             {recoveryStep === 1 ? (
               <form onSubmit={handleFetchQuestion} className="space-y-5">
                 <p className="text-xs text-gray-400 font-medium leading-relaxed">
-                  Provide your official corporate email identity parameters to fetch your verification structure.
+                  Provide your official email.
                 </p>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
