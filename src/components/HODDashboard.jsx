@@ -10,8 +10,9 @@ const HODDashboard = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('queue'); 
-  const [selectedReq, setSelectedReq] = useState(null); 
+  const [activeTab, setActiveTab] = useState('queue');
+  // UPDATED: Store ID instead of full object for better reactivity
+  const [selectedReqId, setSelectedReqId] = useState(null);
   const [hodComment, setHodComment] = useState('');
 
   const [showProfile, setShowProfile] = useState(false);
@@ -23,6 +24,9 @@ const HODDashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // DERIVED STATE: Always get the latest data for the modal based on selected ID
+  const selectedReq = requisitions.find((r) => r._id === selectedReqId) || null;
 
   const syncPortal = async () => {
     if (!token || !user.email) {
@@ -41,16 +45,12 @@ const HODDashboard = () => {
         }).catch(() => ({ data: [] }))
       ]);
 
-      const queueData = Array.isArray(queueRes.data) ? queueRes.data : [];
-      const historyData = Array.isArray(historyRes.data) ? historyRes.data : [];
-      
-      setRequisitions(queueData);
-      setHistory(historyData);
+      setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
+      setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
       if ('setAppBadge' in navigator) {
-        queueData.length > 0 ? navigator.setAppBadge(queueData.length) : navigator.clearAppBadge();
+        queueRes.data?.length > 0 ? navigator.setAppBadge(queueRes.data.length) : navigator.clearAppBadge();
       }
-
     } catch (err) {
       console.error("Portal Sync Error:", err);
       toast.error("Global portal sync failed");
@@ -118,7 +118,9 @@ const HODDashboard = () => {
       });
 
       toast.success(action === 'Approved' ? 'SENT TO FINANCE' : 'DECLINED', { id: loadingToast });
-      setSelectedReq(null);
+      
+      // Cleanup
+      setSelectedReqId(null);
       setHodComment('');
       syncPortal(); 
     } catch (err) {
@@ -144,7 +146,6 @@ const HODDashboard = () => {
             <p className="text-[8px] font-bold text-gray-500 uppercase">HOD DASHBOARD</p>
           </div>
         </div>
-
         <div className="flex items-center gap-4">
            {!notificationsEnabled && (
              <button onClick={handleEnableNotifications} className="hidden md:block bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
@@ -157,6 +158,7 @@ const HODDashboard = () => {
         </div>
       </nav>
 
+      {/* Profile Modal */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -222,7 +224,8 @@ const HODDashboard = () => {
                       <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
                     </div>
                   </div>
-                  <button onClick={() => setSelectedReq(req)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
+                  {/* UPDATED: Open by ID */}
+                  <button onClick={() => setSelectedReqId(req._id)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
                     REVIEW REQUEST
                   </button>
                 </div>
@@ -251,11 +254,11 @@ const HODDashboard = () => {
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter italic uppercase underline decoration-[#A67C52] decoration-4 underline-offset-4">Departmental Review</h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-2 tracking-widest uppercase">ID: #{selectedReq._id.slice(-6)}</p>
                 </div>
-                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
+                <button onClick={() => setSelectedReqId(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              {/* ROW 1: CORE DETAILS */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              {/* CORE DETAILS */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
                   <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
@@ -268,32 +271,9 @@ const HODDashboard = () => {
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
                   <p className="text-xs font-black text-red-500">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
-                </div>
-              </div>
-
-              {/* ROW 2: NEWLY ADDED FIELDS + CORRECTED ACCOUNT DETAILS */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.poNumber || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">DA Ref No</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.daRefNo || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
-                  <p className={`text-xs font-black ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
-                    {selectedReq.clientPaymentStatus || 'N/A'}
-                  </p>
-                </div>
                 <div className="bg-gray-900 p-4 rounded-2xl border border-[#A67C52]/30">
                   <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
                   <p className="text-[10px] font-bold text-white break-words leading-tight">
-                    {/* FIXED: Using beneficiaryDetails to match submission field */}
                     {selectedReq.beneficiaryDetails || selectedReq.accountDetails || 'NOT PROVIDED'}
                   </p>
                 </div>
