@@ -11,7 +11,6 @@ const HODDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('queue');
-  // UPDATED: Store ID instead of full object for better reactivity
   const [selectedReqId, setSelectedReqId] = useState(null);
   const [hodComment, setHodComment] = useState('');
 
@@ -25,7 +24,6 @@ const HODDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // DERIVED STATE: Always get the latest data for the modal based on selected ID
   const selectedReq = requisitions.find((r) => r._id === selectedReqId) || null;
 
   const syncPortal = async () => {
@@ -118,8 +116,6 @@ const HODDashboard = () => {
       });
 
       toast.success(action === 'Approved' ? 'SENT TO FINANCE' : 'DECLINED', { id: loadingToast });
-      
-      // Cleanup
       setSelectedReqId(null);
       setHodComment('');
       syncPortal(); 
@@ -224,22 +220,14 @@ const HODDashboard = () => {
                       <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
                     </div>
                   </div>
-                  {/* UPDATED: Open by ID */}
                   <button onClick={() => setSelectedReqId(req._id)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
                     REVIEW REQUEST
                   </button>
                 </div>
               ))}
-              {filterList(requisitions).length === 0 && (
-                <div className="text-center py-32 bg-white rounded-[3rem] border-4 border-dashed border-gray-50">
-                  <p className="text-gray-300 font-black tracking-[0.4em] text-xs uppercase underline decoration-[#A67C52] decoration-2 underline-offset-8">No records currently pending</p>
-                </div>
-              )}
             </>
           ) : (
-            <RequisitionHistory 
-              requisitions={filterList(history)} 
-            />
+            <RequisitionHistory requisitions={filterList(history)} />
           )}
         </div>
       </main>
@@ -257,26 +245,23 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReqId(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              {/* CORE DETAILS */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Requester</p>
-                  <p className="text-xs font-black text-gray-800 truncate">{selectedReq.requesterName}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Value</p>
-                  <p className="text-xs font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
-                  <p className="text-xs font-black text-red-500">{new Date(selectedReq.dueDate).toLocaleDateString()}</p>
-                </div>
-                <div className="bg-gray-900 p-4 rounded-2xl border border-[#A67C52]/30">
-                  <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
-                  <p className="text-[10px] font-bold text-white break-words leading-tight">
-                    {selectedReq.beneficiaryDetails || selectedReq.accountDetails || 'NOT PROVIDED'}
-                  </p>
-                </div>
+              {/* CORE DETAILS - ALL FIELDS INCLUDED */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[
+                  { label: "Requester", value: selectedReq.requesterName },
+                  { label: "Value", value: `${selectedReq.currency} ${selectedReq.amount?.toLocaleString()}` },
+                  { label: "Due Date", value: new Date(selectedReq.dueDate).toLocaleDateString() },
+                  { label: "Vendor", value: selectedReq.vendorName || 'N/A' },
+                  { label: "PO Number", value: selectedReq.poNumber || 'N/A' },
+                  { label: "Invoice No", value: selectedReq.invoiceNumber || 'N/A' },
+                  { label: "Payment Status", value: selectedReq.clientPaymentStatus || 'N/A' },
+                  { label: "DA Ref", value: selectedReq.daRefNo || 'N/A' }
+                ].map((item, idx) => (
+                  <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">{item.label}</p>
+                    <p className="text-xs font-black text-gray-800 truncate">{item.value}</p>
+                  </div>
+                ))}
               </div>
 
               <div className="space-y-6 mb-10">
