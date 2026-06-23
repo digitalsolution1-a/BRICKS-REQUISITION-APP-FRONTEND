@@ -212,7 +212,7 @@ const Login = () => {
         {mode === 'change-password' && (
           <div className="p-10 space-y-6">
             <h2 className="text-[#A67C52] text-xl font-black tracking-tight uppercase">
-              Account Security Reset
+              Account Password Reset
             </h2>
 
             {recoveryStep === 1 ? (
