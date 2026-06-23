@@ -87,43 +87,43 @@ function EditRequisition() {
 
         <form onSubmit={handleSubmit} className="p-10 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <select name="requestOption" value={formData.requestOption} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{["New", "Paid"].map(o => <option key={o} value={o}>{o}</option>)}</select>
-            <select name="department" value={formData.department} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select>
-            <select name="hodForApproval" value={formData.hodForApproval} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{HOD_EMAILS.map(h => <option key={h} value={h}>{h}</option>)}</select>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Request Option</label><select name="requestOption" value={formData.requestOption} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{["New", "Paid"].map(o => <option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Department</label><select name="department" value={formData.department} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">HOD for Approval</label><select name="hodForApproval" value={formData.hodForApproval} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{HOD_EMAILS.map(h => <option key={h} value={h}>{h}</option>)}</select></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <select name="clientName" value={formData.clientName} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}</select>
-            {formData.clientName === "Others" && <input name="otherClient" value={formData.otherClient} onChange={handleInputChange} placeholder="Specify Client" className="bg-gray-50 p-4 rounded-xl" />}
-            <select name="vendorName" value={formData.vendorName} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{VENDORS.map(v => <option key={v} value={v}>{v}</option>)}</select>
-            {formData.vendorName === "Others" && <input name="otherVendor" value={formData.otherVendor} onChange={handleInputChange} placeholder="Specify Vendor" className="bg-gray-50 p-4 rounded-xl" />}
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Client Name</label><select name="clientName" value={formData.clientName} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            {formData.clientName === "Others" && <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Specify Client</label><input name="otherClient" value={formData.otherClient} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2" /></div>}
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Vendor Name</label><select name="vendorName" value={formData.vendorName} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{VENDORS.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+            {formData.vendorName === "Others" && <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Specify Vendor</label><input name="otherVendor" value={formData.otherVendor} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2" /></div>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <input name="poNumber" value={formData.poNumber} onChange={handleInputChange} placeholder="P.O Number" className="bg-gray-50 p-4 rounded-xl" />
-             <input name="invoiceNo" value={formData.invoiceNo} onChange={handleInputChange} placeholder="Invoice No" className="bg-gray-50 p-4 rounded-xl" />
+             <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">P.O Number</label><input name="poNumber" value={formData.poNumber} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2" /></div>
+             <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Invoice Number</label><input name="invoiceNo" value={formData.invoiceNo} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2" /></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <select name="daRefNo" value={formData.daRefNo} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{DA_REFS.map(ref => <option key={ref} value={ref}>{ref}</option>)}</select>
-            <select name="currency" value={formData.currency} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{["NGN", "USD", "EUR", "GBP", "Others"].map(c => <option key={c} value={c}>{c}</option>)}</select>
-            <select name="clientPaymentStatus" value={formData.clientPaymentStatus} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl">{["N/A", "Paid", "Not-paid"].map(s => <option key={s} value={s}>{s}</option>)}</select>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">DA Ref Number</label><select name="daRefNo" value={formData.daRefNo} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{DA_REFS.map(ref => <option key={ref} value={ref}>{ref}</option>)}</select></div>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Currency</label><select name="currency" value={formData.currency} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{["NGN", "USD", "EUR", "GBP", "Others"].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Payment Status</label><select name="clientPaymentStatus" value={formData.clientPaymentStatus} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{["N/A", "Paid", "Not-paid"].map(s => <option key={s} value={s}>{s}</option>)}</select></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="Amount" className="bg-gray-50 p-4 rounded-xl" />
-            <input name="amountInWords" value={formData.amountInWords} onChange={handleInputChange} placeholder="Amount in Words" className="bg-gray-50 p-4 rounded-xl" />
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Amount</label><input type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2" /></div>
+            <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Amount in Words</label><input name="amountInWords" value={formData.amountInWords} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2" /></div>
           </div>
 
-          <textarea name="beneficiaryDetails" value={formData.beneficiaryDetails} onChange={handleInputChange} placeholder="Beneficiary Details" className="bg-gray-50 p-4 rounded-xl w-full" />
+          <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Beneficiary Details</label><textarea name="beneficiaryDetails" value={formData.beneficiaryDetails} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2 w-full" /></div>
           
-          <input type="date" name="dueDate" value={formData.dueDate} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl w-full" />
+          <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Due Date</label><input type="date" name="dueDate" value={formData.dueDate} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2 w-full" /></div>
           
-          <textarea name="requestNarrative" value={formData.requestNarrative} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl w-full" placeholder="Narrative" />
+          <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Narrative</label><textarea name="requestNarrative" value={formData.requestNarrative} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2 w-full" rows="3" /></div>
           
-          <input type="file" onChange={(e) => setFile(e.target.files[0])} className="w-full bg-gray-50 p-4 rounded-xl" />
+          <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Update Supporting Document</label><input type="file" onChange={(e) => setFile(e.target.files[0])} className="w-full bg-gray-50 p-4 rounded-xl border-b-2" /></div>
 
-          <button type="submit" disabled={updating} className="w-full py-6 bg-black text-white rounded-[2rem] uppercase font-black hover:bg-[#A67C52]">
+          <button type="submit" disabled={updating} className="w-full py-6 bg-black text-white rounded-[2rem] uppercase font-black hover:bg-[#A67C52] transition-colors">
             {updating ? 'Updating...' : 'UPDATE & RESUBMIT'}
           </button>
         </form>
