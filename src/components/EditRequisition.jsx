@@ -59,7 +59,14 @@ function EditRequisition() {
     e.preventDefault();
     setUpdating(true);
     const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    
+    // Explicitly filter out fields that cause backend validation errors
+    Object.keys(formData).forEach(key => {
+      if (key !== 'approvalHistory' && key !== '__v' && key !== '_id') {
+        data.append(key, formData[key]);
+      }
+    });
+
     if (file) data.append('document', file);
 
     try {
