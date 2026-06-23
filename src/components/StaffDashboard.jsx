@@ -47,7 +47,6 @@ function StaffDashboard() {
     navigate('/');
   };
 
-  // Helper function to return dynamic Tailwind styling depending on the active stage/status
   const getStatusBadge = (status, currentStage) => {
     if (status === 'Declined' || status === 'Rejected') {
       return 'bg-red-50 text-red-500 border border-red-100';
@@ -56,7 +55,6 @@ function StaffDashboard() {
       return 'bg-green-50 text-green-600 border border-green-100';
     }
 
-    // Evaluate active phase workflow positioning
     const stage = String(currentStage).toUpperCase();
     switch (stage) {
       case 'HOD':
@@ -73,7 +71,6 @@ function StaffDashboard() {
     }
   };
 
-  // Format tracking string outputs cleanly to the user interface
   const formatStatusText = (status, currentStage) => {
     if (status === 'Declined' || status === 'Rejected') return 'DECLINED';
     if (status === 'Paid') return 'PAID';
@@ -98,7 +95,6 @@ function StaffDashboard() {
 
   return (
     <div className="bg-gray-50 min-h-screen uppercase">
-      {/* --- NATIVE NAV BAR --- */}
       <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-[#A67C52] rounded-xl flex items-center justify-center font-black text-xl italic text-black">B</div>
@@ -122,7 +118,6 @@ function StaffDashboard() {
         </div>
       </nav>
 
-      {/* EXECUTIVE PROFILE DROPDOWN */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -146,7 +141,6 @@ function StaffDashboard() {
       <div className="p-4 md:p-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           
-          {/* ACTION CARD */}
           <div className="md:col-span-1 bg-[#A67C52] rounded-[3rem] p-10 text-white shadow-2xl flex flex-col justify-between h-fit md:h-[450px] relative overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
             <div className="relative z-10">
@@ -163,7 +157,6 @@ function StaffDashboard() {
             </Link>
           </div>
 
-          {/* LIST CARD */}
           <div className="md:col-span-3 bg-white rounded-[3rem] p-8 md:p-10 shadow-sm border border-gray-100">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
               <div>
@@ -220,13 +213,20 @@ function StaffDashboard() {
                             <span className="text-sm">📄</span>
                           </button>
 
-                          {/* Editable state locked exclusively to early-stage submissions */}
-                          {req.status === 'Pending' && String(req.currentStage).toUpperCase() === 'HOD' && (
+                          {/* UPDATED: Show Edit button if Pending at HOD stage OR if the request was Declined */}
+                          {(
+                            (req.status === 'Pending' && String(req.currentStage).toUpperCase() === 'HOD') || 
+                            (req.status === 'Declined')
+                          ) && (
                             <button 
                               onClick={() => navigate(`/edit-requisition/${req._id}`)}
-                              className="bg-black text-white px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#A67C52] transition-all shadow-lg active:scale-95"
+                              className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                                req.status === 'Declined' 
+                                  ? 'bg-red-500 text-white hover:bg-red-600' 
+                                  : 'bg-black text-white hover:bg-[#A67C52]'
+                              }`}
                             >
-                              Edit
+                              {req.status === 'Declined' ? 'Edit & Resubmit' : 'Edit'}
                             </button>
                           )}
                         </td>
