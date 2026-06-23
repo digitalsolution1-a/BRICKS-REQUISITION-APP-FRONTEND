@@ -46,12 +46,12 @@ function EditRequisition() {
         
         if (res.data) {
           setFormData({
-            requestNarrative: res.data.requestNarrative || res.data.description || '',
-            amount: res.data.amount || res.data.totalAmount || '',
+            requestNarrative: res.data.requestNarrative || '',
+            amount: res.data.amount || '',
             amountInWords: res.data.amountInWords || '',
             vendorName: res.data.vendorName || '',
-            department: res.data.department || res.data.dept || '',
-            beneficiaryDetails: res.data.beneficiaryDetails || res.data.accountDetails || '',
+            department: res.data.department || '',
+            beneficiaryDetails: res.data.beneficiaryDetails || '',
             currency: res.data.currency || 'NGN',
             dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : '' 
           });
@@ -80,7 +80,6 @@ function EditRequisition() {
     e.preventDefault();
     setUpdating(true);
 
-    // Validation Check before sending
     if (!formData.department) {
       toast.error("Department field is missing");
       setUpdating(false);
@@ -97,25 +96,24 @@ function EditRequisition() {
     data.append('department', formData.department);
     data.append('dueDate', formData.dueDate);
     
-    // Workflow Reset constants
-    data.append('status', 'Pending');
-    data.append('currentStage', 'HOD');
-    
+    // If a new file is provided, it will be uploaded to Cloudinary
     if (file) data.append('document', file);
 
     try {
-      await axios.put(`${API_BASE_URL}/requisitions/update/${id}`, data, {
+      // 🟢 Pointing to the new Resubmit Route
+      await axios.put(`${API_BASE_URL}/requisitions/resubmit/${id}`, data, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}` 
         }
       });
+      
       toast.success("REQUISITION UPDATED & RESUBMITTED");
       navigate('/staff-dashboard');
     } catch (err) {
-      console.error("Submission Error:", err.response?.data);
-      const serverMsg = err.response?.data?.message || err.response?.data?.error;
-      toast.error(serverMsg || "Update Failed: Check required fields");
+      console.error("Resubmission Error:", err.response?.data);
+      const serverMsg = err.response?.data?.error || "Resubmission Failed";
+      toast.error(serverMsg);
     } finally {
       setUpdating(false);
     }
@@ -146,7 +144,6 @@ function EditRequisition() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-6">
-          
           <div className="flex flex-col">
             <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Narrative / Justification</label>
             <textarea 
@@ -210,7 +207,6 @@ function EditRequisition() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ADDED DEPARTMENT FIELD - CRITICAL FOR VALIDATION */}
             <div className="flex flex-col">
               <label className="text-[9px] font-black text-gray-400 mb-2 tracking-widest italic uppercase">Department</label>
               <input 
@@ -249,7 +245,7 @@ function EditRequisition() {
             disabled={updating} 
             className="w-full py-6 bg-black text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.3em] hover:bg-[#A67C52] transition-all shadow-xl active:scale-95 disabled:opacity-50"
           >
-            {updating ? 'SYNCHRONIZING...' : 'UPDATE & RESUBMIT'}
+            {updating ? 'Updating...' : 'UPDATE & RESUBMIT'}
           </button>
         </form>
       </div>
