@@ -25,6 +25,7 @@ const HODDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  // Ensure selectedReq can find the item in the filtered state lists
   const selectedReq = 
     requisitions.find((r) => r._id === selectedReqId) || 
     history.find((r) => r._id === selectedReqId) ||
@@ -40,11 +41,12 @@ const HODDashboard = () => {
       setLoading(true);
       const [queueRes, historyRes, allRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/HOD?email=${user.email}`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/requisitions/history/HOD?email=${user.email}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+        axios.get(`${API_，BASE_URL}/requisitions/history/HOD?email=${user.email}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/requisitions/all`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
       ]);
 
       const dept = user.department;
+      // Explicitly filter all incoming data by the user's department
       setRequisitions(Array.isArray(queueRes.data) ? queueRes.data.filter(r => r.department === dept) : []);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data.filter(r => r.department === dept) : []);
       setAllDeptReqs(Array.isArray(allRes.data) ? allRes.data.filter(r => r.department === dept) : []);
@@ -127,6 +129,7 @@ const HODDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#FBF9F6] uppercase">
+      {/* Navbar Section */}
       <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-4">
           <div className="w-8 h-8 bg-[#A67C52] rounded-lg flex items-center justify-center font-black text-xs">B</div>
@@ -135,93 +138,71 @@ const HODDashboard = () => {
             <p className="text-[8px] font-bold text-gray-500 uppercase">HOD DASHBOARD</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-           {!notificationsEnabled && (
-             <button onClick={handleEnableNotifications} className="hidden md:block bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">🔔 ENABLE ALERTS</button>
-           )}
-           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg active:scale-90 transition-all">
-             <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'HO'}</span>
-           </button>
-        </div>
+        <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900">
+           <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'HO'}</span>
+        </button>
       </nav>
 
+      {/* Profile Modal */}
       {showProfile && (
-        <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border p-6">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded-2xl mx-auto mb-3 flex items-center justify-center text-xl font-black text-[#A67C52]">
-              {user?.name?.substring(0,2).toUpperCase() || 'HO'}
-            </div>
-            <h4 className="text-sm font-black text-gray-900 leading-none">{user?.name || 'Head of Dept'}</h4>
+            <h4 className="text-sm font-black text-gray-900">{user?.name || 'Head of Dept'}</h4>
             <p className="text-[9px] font-bold text-[#A67C52] mt-2">HOD STATUS: VERIFIED</p>
           </div>
-          <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">Sign Out</button>
+          <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500">Sign Out</button>
         </div>
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
+        <div className="flex justify-between items-end mb-10 mt-4">
           <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none italic">HOD <span className="text-[#A67C52]">DASHBOARD</span></h2>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic">HOD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
               {['queue', 'history', 'all'].map((tab) => (
                 <button 
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === tab ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
+                  className={`text-[10px] font-black pb-2 border-b-2 ${activeTab === tab ? 'border-[#A67C52]' : 'border-transparent'}`}
                 >
                   {tab === 'queue' ? `PENDING (${requisitions.length})` : tab === 'history' ? `HISTORY (${history.length})` : `ALL DEPT (${allDeptReqs.length})`}
                 </button>
               ))}
             </div>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
-            <input type="text" placeholder="SEARCH..." className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm" onChange={(e) => setSearchTerm(e.target.value)} />
-            <button onClick={exportData} className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg">EXPORT CSV</button>
-          </div>
+          <button onClick={exportData} className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black">EXPORT CSV</button>
         </div>
 
         <div className="grid gap-4">
           {activeTab === 'queue' && filterList(requisitions).map(req => (
-            <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex justify-between items-center shadow-sm">
-              <div>
-                <h3 className="text-xl font-black text-gray-900">{req.requesterName}</h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
-              </div>
-              <button onClick={() => setSelectedReqId(req._id)} className="bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black shadow-lg hover:bg-[#A67C52]">REVIEW</button>
+            <div key={req._id} className="bg-white rounded-[2.5rem] p-6 flex justify-between items-center shadow-sm">
+              <h3 className="font-black">{req.requesterName}</h3>
+              <button onClick={() => setSelectedReqId(req._id)} className="bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black">REVIEW</button>
             </div>
           ))}
           {activeTab === 'history' && <RequisitionHistory requisitions={filterList(history)} />}
           {activeTab === 'all' && filterList(allDeptReqs).map(req => (
-            <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex justify-between items-center shadow-sm">
-              <div>
-                <h3 className="text-xl font-black text-gray-900">{req.requesterName}</h3>
-                <p className="text-[10px] font-bold text-[#A67C52] uppercase italic">Status: {req.status}</p>
-              </div>
-              <button onClick={() => setSelectedReqId(req._id)} className="text-[10px] font-black underline">VIEW</button>
+            <div key={req._id} className="bg-white rounded-[2.5rem] p-6 flex justify-between items-center shadow-sm">
+              <h3 className="font-black">{req.requesterName}</h3>
+              <p className="text-[10px] font-bold text-[#A67C52]">STATUS: {req.status}</p>
             </div>
           ))}
         </div>
       </main>
 
+      {/* Review Modal */}
       {selectedReq && ( 
-         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden p-8 max-h-[90vh] overflow-y-auto">
+         <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-4xl rounded-[3rem] p-8">
                <div className="flex justify-between mb-8">
-                  <h3 className="text-2xl font-black italic underline decoration-[#A67C52]">DEPARTMENTAL REVIEW</h3>
-                  <button onClick={() => setSelectedReqId(null)} className="font-black text-xl hover:text-[#A67C52]">✕</button>
+                  <h3 className="text-2xl font-black italic underline decoration-[#A67C52]">REVIEW</h3>
+                  <button onClick={() => setSelectedReqId(null)} className="font-black text-xl">✕</button>
                </div>
-               
-               <div className="grid grid-cols-2 gap-6 mb-8 text-xs">
-                  <div><p className="text-gray-400 font-bold uppercase">Requester</p><p className="font-black">{selectedReq.requesterName}</p></div>
-                  <div><p className="text-gray-400 font-bold uppercase">Amount</p><p className="font-black">{selectedReq.amount} {selectedReq.currency}</p></div>
-                  <div className="col-span-2"><p className="text-gray-400 font-bold uppercase">Vendor</p><p className="font-black">{selectedReq.vendorName}</p></div>
-               </div>
-
                {activeTab === 'queue' && (
-                 <div className="flex flex-col gap-4 border-t pt-6">
-                    <input type="text" placeholder="ADD COMMENT (REQUIRED FOR DECLINE)..." className="border-2 border-gray-100 p-4 rounded-xl text-[10px] font-black" value={hodComment} onChange={(e) => setHodComment(e.target.value)} />
+                 <div className="flex flex-col gap-4">
+                    <input type="text" placeholder="REASON FOR DECLINE..." className="border p-4 rounded-xl" value={hodComment} onChange={(e) => setHodComment(e.target.value)} />
                     <div className="flex gap-4">
-                       <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-black text-white py-4 rounded-2xl font-black text-[10px] hover:bg-[#A67C52]">APPROVE</button>
+                       <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-black text-white py-4 rounded-2xl font-black text-[10px]">APPROVE</button>
                        <button onClick={() => handleAction(selectedReq._id, 'Declined')} className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-[10px]">DECLINE</button>
                     </div>
                  </div>
