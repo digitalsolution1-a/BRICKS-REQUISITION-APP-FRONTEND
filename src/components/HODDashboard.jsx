@@ -187,7 +187,7 @@ const HODDashboard = () => {
                 onClick={() => setActiveTab('history')}
                 className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
               >
-                ACTION HISTORY ({history.filter(h => h.lastActionBy === user.name).length})
+                ACTION HISTORY ({history.length})
               </button>
             </div>
           </div>
@@ -227,7 +227,7 @@ const HODDashboard = () => {
               ))}
             </>
           ) : (
-            <RequisitionHistory requisitions={filterList(history).filter(req => req.lastActionBy === user.name)} />
+            <RequisitionHistory requisitions={filterList(history)} />
           )}
         </div>
       </main>
@@ -245,6 +245,7 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReqId(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
+              {/* CORE DETAILS - UPDATED TO MATCH MONGOOSE SCHEMA */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { label: "Requester", value: selectedReq.requesterName },
