@@ -4,20 +4,25 @@ import { useNavigate } from 'react-router-dom';
 const RequisitionHistory = ({ requisitions }) => {
   const navigate = useNavigate();
 
-  // Filter for everything that is NOT pending, but include "Declined" so staff can edit them
-  const historyItems = requisitions.filter(req => 
-    req.status?.toLowerCase() === 'approved' || 
-    req.status?.toLowerCase() === 'rejected' ||
-    req.status?.toLowerCase() === 'completed' ||
-    req.status?.toLowerCase() === 'declined'
-  );
+  // Helper to determine if a request is editable
+  // Includes 'pending', 'hod' (stage), 'declined', and 'rejected'
+  const isEditable = (status) => {
+    const s = status?.toLowerCase();
+    return s === 'pending' || s === 'declined' || s === 'rejected' || s === 'hod';
+  };
+
+  // Filter logic: show everything that is not "Paid" (or whatever your final terminal state is)
+  // We keep the history visible but ensure all potentially editable items appear
+  const historyItems = Array.isArray(requisitions) ? requisitions.filter(req => 
+    req.status?.toLowerCase() !== 'paid' // Adjust this if you have other final states
+  ) : [];
 
   return (
     <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden mt-8">
       <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-        <h2 className="text-gray-800 font-black text-sm tracking-widest uppercase italic">Request History</h2>
-        <span className="bg-green-50 text-green-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">
-          {historyItems.length} Archive Records
+        <h2 className="text-gray-800 font-black text-sm tracking-widest uppercase italic">Request History & Queue</h2>
+        <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">
+          {historyItems.length} Total Records
         </span>
       </div>
       
@@ -36,7 +41,7 @@ const RequisitionHistory = ({ requisitions }) => {
             {historyItems.length === 0 ? (
               <tr>
                 <td colSpan="5" className="p-20 text-center font-black text-gray-300 text-xs uppercase">
-                  No Archived Records Found
+                  No Records Found
                 </td>
               </tr>
             ) : (
@@ -59,20 +64,19 @@ const RequisitionHistory = ({ requisitions }) => {
                   <td className="p-6">
                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
                       req.status?.toLowerCase() === 'approved' ? 'bg-green-100 text-green-600' : 
-                      req.status?.toLowerCase() === 'declined' ? 'bg-orange-100 text-orange-600' :
-                      'bg-red-100 text-red-600'
+                      req.status?.toLowerCase() === 'declined' || req.status?.toLowerCase() === 'rejected' ? 'bg-orange-100 text-orange-600' :
+                      'bg-gray-100 text-gray-600'
                     }`}>
                       {req.status}
                     </span>
                   </td>
                   <td className="p-6">
-                    {/* SHOW EDIT BUTTON ONLY FOR DECLINED OR PENDING STATUS */}
-                    {(req.status?.toLowerCase() === 'declined' || req.status?.toLowerCase() === 'pending') && (
+                    {isEditable(req.status) && (
                       <button 
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
-                          e.stopPropagation(); // Prevents the click from bubbling up to the row
+                          e.stopPropagation();
                           const targetId = req._id || req.id;
                           if (targetId) {
                             navigate(`/edit-requisition/${targetId}`);
