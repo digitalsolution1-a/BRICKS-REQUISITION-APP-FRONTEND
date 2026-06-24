@@ -25,6 +25,7 @@ const HODDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  // Updated to find selected request across all possible lists
   const selectedReq = 
     requisitions.find((r) => r._id === selectedReqId) || 
     history.find((r) => r._id === selectedReqId) ||
@@ -44,19 +45,17 @@ const HODDashboard = () => {
         axios.get(`${API_BASE_URL}/requisitions/all`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
       ]);
 
-      const dept = user.department;
+      setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
+      setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      // Filter 'all' records to match current user's department
+      setAllDeptReqs(Array.isArray(allRes.data) ? allRes.data.filter(r => r.department === user.department) : []);
 
-      // Filter all incoming data by user department to ensure data is peculiar to the department
-      setRequisitions(Array.isArray(queueRes.data) ? queueRes.data.filter(r => r.department === dept) : []);
-      setHistory(Array.isArray(historyRes.data) ? historyRes.data.filter(r => r.department === dept) : []);
-      setAllDeptReqs(Array.isArray(allRes.data) ? allRes.data.filter(r => r.department === dept) : []);
-
-      if ('setAppBadge' in navigator && queueRes.data?.length > 0) {
-        navigator.setAppBadge(queueRes.data.length);
+      if ('setAppBadge' in navigator) {
+        queueRes.data?.length > 0 ? navigator.setAppBadge(queueRes.data.length) : navigator.clearAppBadge();
       }
     } catch (err) {
       console.error("Portal Sync Error:", err);
-      toast.error("Failed to sync departmental portal");
+      toast.error("Global portal sync failed");
     } finally {
       setLoading(false);
     }
@@ -103,6 +102,7 @@ const HODDashboard = () => {
 
   const handleAction = async (id, action) => {
     if (action === 'Declined' && !hodComment) return toast.error("A reason is required to decline.");
+
     const loadingToast = toast.loading(`${action}ing request...`);
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
@@ -176,6 +176,7 @@ const HODDashboard = () => {
               ))}
             </div>
           </div>
+          
           <div className="flex gap-3 w-full md:w-auto">
             <input type="text" placeholder="SEARCH..." className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm" onChange={(e) => setSearchTerm(e.target.value)} />
             <button onClick={exportData} className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg">EXPORT CSV</button>
@@ -192,14 +193,7 @@ const HODDashboard = () => {
               <button onClick={() => setSelectedReqId(req._id)} className="bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black shadow-lg hover:bg-[#A67C52]">REVIEW</button>
             </div>
           ))}
-          
-          {activeTab === 'history' && (
-            <RequisitionHistory 
-              requisitions={filterList(history)} 
-              userDepartment={user.department} 
-            />
-          )}
-          
+          {activeTab === 'history' && <RequisitionHistory requisitions={filterList(history)} />}
           {activeTab === 'all' && filterList(allDeptReqs).map(req => (
             <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex justify-between items-center shadow-sm">
               <div>
@@ -212,15 +206,16 @@ const HODDashboard = () => {
         </div>
       </main>
 
-      {/* Review Modal */}
+      {/* Modal and existing logic remains here */}
       {selectedReq && ( 
+         /* (Keep your existing Modal code here) */
          <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden p-8">
                <div className="flex justify-between mb-8">
                   <h3 className="text-2xl font-black italic underline decoration-[#A67C52]">Departmental Review</h3>
                   <button onClick={() => setSelectedReqId(null)} className="font-black">✕</button>
                </div>
-               {/* Place your existing Modal body content here */}
+               {/* Rest of your existing Modal content... */}
             </div>
          </div>
       )}
