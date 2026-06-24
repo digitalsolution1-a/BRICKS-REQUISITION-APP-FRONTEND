@@ -245,7 +245,7 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReqId(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              {/* CORE DETAILS - ALL FIELDS INCLUDED */}
+              {/* CORE DETAILS - UPDATED TO MATCH MONGOOSE SCHEMA */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { label: "Requester", value: selectedReq.requesterName },
@@ -253,7 +253,7 @@ const HODDashboard = () => {
                   { label: "Due Date", value: new Date(selectedReq.dueDate).toLocaleDateString() },
                   { label: "Vendor", value: selectedReq.vendorName || 'N/A' },
                   { label: "PO Number", value: selectedReq.poNumber || 'N/A' },
-                  { label: "Invoice No", value: selectedReq.invoiceNumber || 'N/A' },
+                  { label: "Invoice No", value: selectedReq.invoiceNo || 'N/A' },
                   { label: "Payment Status", value: selectedReq.clientPaymentStatus || 'N/A' },
                   { label: "DA Ref", value: selectedReq.daRefNo || 'N/A' }
                 ].map((item, idx) => (
