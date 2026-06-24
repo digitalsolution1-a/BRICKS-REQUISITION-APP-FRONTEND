@@ -4,17 +4,13 @@ import { useNavigate } from 'react-router-dom';
 const RequisitionHistory = ({ requisitions }) => {
   const navigate = useNavigate();
 
-  // Helper to determine if a request is editable
-  // Includes 'pending', 'hod' (stage), 'declined', and 'rejected'
   const isEditable = (status) => {
     const s = status?.toLowerCase();
     return s === 'pending' || s === 'declined' || s === 'rejected' || s === 'hod';
   };
 
-  // Filter logic: show everything that is not "Paid" (or whatever your final terminal state is)
-  // We keep the history visible but ensure all potentially editable items appear
   const historyItems = Array.isArray(requisitions) ? requisitions.filter(req => 
-    req.status?.toLowerCase() !== 'paid' // Adjust this if you have other final states
+    req.status?.toLowerCase() !== 'paid'
   ) : [];
 
   return (
@@ -33,7 +29,7 @@ const RequisitionHistory = ({ requisitions }) => {
               <th className="p-6">Description</th>
               <th className="p-6">Department</th>
               <th className="p-6">Amount</th>
-              <th className="p-6">Status</th>
+              <th className="p-6">Current Location</th>
               <th className="p-6">Action</th>
             </tr>
           </thead>
@@ -62,12 +58,16 @@ const RequisitionHistory = ({ requisitions }) => {
                     {req.currency || '₦'}{(req.amount || req.totalAmount)?.toLocaleString()}
                   </td>
                   <td className="p-6">
+                    {/* Logic to show who is currently holding the request */}
                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest ${
-                      req.status?.toLowerCase() === 'approved' ? 'bg-green-100 text-green-600' : 
-                      req.status?.toLowerCase() === 'declined' || req.status?.toLowerCase() === 'rejected' ? 'bg-orange-100 text-orange-600' :
+                      req.status?.toLowerCase() === 'declined' ? 'bg-red-100 text-red-600' :
+                      req.currentStage === 'FC' ? 'bg-blue-100 text-blue-600' :
+                      req.currentStage === 'MD' ? 'bg-purple-100 text-purple-600' :
                       'bg-gray-100 text-gray-600'
                     }`}>
-                      {req.status}
+                      {req.status?.toLowerCase() === 'pending' 
+                        ? `PENDING: ${req.currentStage || 'PROCESSING'}` 
+                        : req.status}
                     </span>
                   </td>
                   <td className="p-6">
@@ -76,11 +76,8 @@ const RequisitionHistory = ({ requisitions }) => {
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
-                          e.stopPropagation();
                           const targetId = req._id || req.id;
-                          if (targetId) {
-                            navigate(`/edit-requisition/${targetId}`);
-                          }
+                          if (targetId) navigate(`/edit-requisition/${targetId}`);
                         }}
                         className="bg-black text-white px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all shadow-md active:scale-90"
                       >
