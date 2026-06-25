@@ -304,7 +304,7 @@ const AccountantDashboard = () => {
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
-                    {selectedReq.isArchiveView ? 'System Record Dossier' : 'Confirm Disbursement'}
+                    {selectedReq.isArchiveView ? 'System Record ' : 'Confirm Disbursement'}
                   </h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">
                     {selectedReq.isArchiveView ? 'Audit Database Reference' : 'Final Treasury Verification'}: #{selectedReq._id.slice(-6)}
