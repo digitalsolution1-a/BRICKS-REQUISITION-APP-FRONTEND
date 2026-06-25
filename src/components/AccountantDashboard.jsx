@@ -282,7 +282,7 @@ const AccountantDashboard = () => {
                     onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
                     className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
                   >
-                    DOSSIER
+                    VIEW
                   </button>
                 </div>
               ))}
