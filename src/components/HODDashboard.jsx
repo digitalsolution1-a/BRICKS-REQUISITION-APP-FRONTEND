@@ -8,6 +8,7 @@ import RequisitionHistory from '../components/RequisitionHistory';
 const HODDashboard = () => {
   const [requisitions, setRequisitions] = useState([]);
   const [history, setHistory] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]); // Added state for All Dept
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('queue');
@@ -24,7 +25,9 @@ const HODDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  const selectedReq = requisitions.find((r) => r._id === selectedReqId) || null;
+  const selectedReq = requisitions.find((r) => r._id === selectedReqId) || 
+                      history.find((r) => r._id === selectedReqId) || 
+                      allDepartments.find((r) => r._id === selectedReqId) || null;
 
   const syncPortal = async () => {
     if (!token || !user.email) {
@@ -34,17 +37,22 @@ const HODDashboard = () => {
 
     try {
       setLoading(true);
-      const [queueRes, historyRes] = await Promise.all([
+      // Fetch HOD specific pending, HOD specific history, and all department data
+      const [queueRes, historyRes, allRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/requisitions/pending/HOD?email=${user.email}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API_BASE_URL}/requisitions/history/HOD?email=${user.email}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/requisitions/all`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] }))
       ]);
 
       setRequisitions(Array.isArray(queueRes.data) ? queueRes.data : []);
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      setAllDepartments(Array.isArray(allRes.data) ? allRes.data : []);
 
       if ('setAppBadge' in navigator) {
         queueRes.data?.length > 0 ? navigator.setAppBadge(queueRes.data.length) : navigator.clearAppBadge();
@@ -83,7 +91,11 @@ const HODDashboard = () => {
   };
 
   const exportData = () => {
-    const targetData = activeTab === 'queue' ? filterList(requisitions) : filterList(history);
+    let targetData = [];
+    if (activeTab === 'queue') targetData = filterList(requisitions);
+    else if (activeTab === 'history') targetData = filterList(history);
+    else targetData = filterList(allDepartments);
+    
     if (targetData.length === 0) return toast.error("Nothing to export");
 
     const headers = "ID,Date,Due Date,Staff,Amount,Currency,Vendor,Status\n";
@@ -177,18 +189,9 @@ const HODDashboard = () => {
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none italic">HOD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
-              <button 
-                onClick={() => setActiveTab('queue')}
-                className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
-              >
-                PENDING APPROVAL ({requisitions.length})
-              </button>
-              <button 
-                onClick={() => setActiveTab('history')}
-                className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
-              >
-                ACTION HISTORY ({history.length})
-              </button>
+              <button onClick={() => setActiveTab('queue')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>PENDING ({requisitions.length})</button>
+              <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>HISTORY ({history.length})</button>
+              <button onClick={() => setActiveTab('all')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'all' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400 hover:text-black'}`}>ALL DEPT ({allDepartments.length})</button>
             </div>
           </div>
           
@@ -199,35 +202,42 @@ const HODDashboard = () => {
               className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button onClick={exportData} className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg">
-              EXPORT CSV
-            </button>
+            <button onClick={exportData} className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg">EXPORT CSV</button>
           </div>
         </div>
 
         <div className="grid gap-4">
           {activeTab === 'queue' ? (
-            <>
-              {filterList(requisitions).map(req => (
-                <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex items-center gap-6 flex-1">
-                    <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
-                      <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
-                      <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
-                    </div>
+             filterList(requisitions).map(req => (
+              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
+                    <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
+                    <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
                   </div>
-                  <button onClick={() => setSelectedReqId(req._id)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
-                    REVIEW REQUEST
-                  </button>
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedReqId(req._id)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">REVIEW</button>
+              </div>
+            ))
+          ) : activeTab === 'history' ? (
+            <RequisitionHistory requisitions={filterList(history)} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filterList(allDepartments).map(req => (
+                <div key={req._id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[8px] font-black text-gray-400">{req.department}</span>
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded ${req.status === 'Paid' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>{req.status}</span>
+                  </div>
+                  <h4 className="font-black text-gray-900 text-sm">{req.vendorName || req.requesterName}</h4>
+                  <p className="text-sm font-black text-[#A67C52] mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
                 </div>
               ))}
-            </>
-          ) : (
-            <RequisitionHistory requisitions={filterList(history)} />
+            </div>
           )}
         </div>
       </main>
@@ -245,17 +255,12 @@ const HODDashboard = () => {
                 <button onClick={() => setSelectedReqId(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
 
-              {/* CORE DETAILS - UPDATED TO MATCH MONGOOSE SCHEMA */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { label: "Requester", value: selectedReq.requesterName },
                   { label: "Value", value: `${selectedReq.currency} ${selectedReq.amount?.toLocaleString()}` },
                   { label: "Due Date", value: new Date(selectedReq.dueDate).toLocaleDateString() },
-                  { label: "Vendor", value: selectedReq.vendorName || 'N/A' },
-                  { label: "PO Number", value: selectedReq.poNumber || 'N/A' },
-                  { label: "Invoice No", value: selectedReq.invoiceNo || 'N/A' },
-                  { label: "Payment Status", value: selectedReq.clientPaymentStatus || 'N/A' },
-                  { label: "DA Ref", value: selectedReq.daRefNo || 'N/A' }
+                  { label: "Vendor", value: selectedReq.vendorName || 'N/A' }
                 ].map((item, idx) => (
                   <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                     <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">{item.label}</p>
@@ -264,44 +269,26 @@ const HODDashboard = () => {
                 ))}
               </div>
 
-              <div className="space-y-6 mb-10">
-                <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100">
-                  <p className="text-[10px] font-black text-gray-300 mb-2 uppercase italic tracking-widest">Description of Need</p>
-                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
-                </div>
-                
-                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50 overflow-hidden">
-                  <p className="text-[9px] font-black text-gray-400 mb-2 mt-4 ml-6 uppercase tracking-widest">Supporting Documentation Preview</p>
-                  <div className="w-full bg-white rounded-[2rem] p-4 min-h-[300px]">
-                    <AttachmentViewer url={selectedReq.attachmentUrl} />
-                  </div>
-                </div>
+              <div className="bg-[#FBF9F6] p-6 rounded-3xl border border-gray-100 mb-10">
+                <p className="text-[10px] font-black text-gray-300 mb-2 uppercase italic tracking-widest">Description</p>
+                <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
               </div>
 
-              <div className="border-t border-gray-100 pt-8 mt-4">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">HOD Review Remarks</p>
-                <textarea 
-                  value={hodComment}
-                  onChange={(e) => setHodComment(e.target.value)}
-                  placeholder="Provide instructions for Finance or reasons for decline..."
-                  className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
-                />
-                
-                <div className="flex flex-col md:flex-row gap-4">
-                  <button 
-                    onClick={() => handleAction(selectedReq._id, 'Approved')}
-                    className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
-                  >
-                    APPROVE TO FINANCE
-                  </button>
-                  <button 
-                    onClick={() => handleAction(selectedReq._id, 'Declined')}
-                    className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95"
-                  >
-                    DECLINE REQUEST
-                  </button>
+              {activeTab === 'queue' && (
+                <div className="border-t border-gray-100 pt-8">
+                  <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">HOD Review Remarks</p>
+                  <textarea 
+                    value={hodComment}
+                    onChange={(e) => setHodComment(e.target.value)}
+                    placeholder="Provide instructions for Finance or reasons for decline..."
+                    className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
+                  />
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl hover:scale-[1.02] transition-all">APPROVE TO FINANCE</button>
+                    <button onClick={() => handleAction(selectedReq._id, 'Declined')} className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all">DECLINE</button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
