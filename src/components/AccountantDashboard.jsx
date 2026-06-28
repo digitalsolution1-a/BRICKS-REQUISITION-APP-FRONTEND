@@ -106,7 +106,7 @@ const AccountantDashboard = () => {
     const loadingToast = toast.loading('Recording Disbursement...');
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
-        action: 'Paid', 
+        action: 'Disburse', 
         actorRole: 'ACCOUNTANT',
         actorName: user.name || 'Accounts Dept',
         comment: 'Disbursement Completed - Funds Released'
