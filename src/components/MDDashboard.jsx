@@ -44,7 +44,7 @@ const MDDashboard = () => {
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, { 
           headers: { Authorization: `Bearer ${token}` } 
         }).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/requisitions/history`, { 
+        axios.get(`${API_BASE_URL}/requisitions/history/MD`, { 
           headers: { Authorization: `Bearer ${token}` } 
         }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/requisitions/all`, { 
