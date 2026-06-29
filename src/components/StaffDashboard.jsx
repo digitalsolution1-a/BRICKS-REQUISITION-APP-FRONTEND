@@ -37,6 +37,15 @@ function StaffDashboard() {
     }
   };
 
+  // Helper to extract the last decline comment from approval history
+  const getDeclineComment = (req) => {
+    if (req.status === 'Declined' && req.approvalHistory?.length > 0) {
+      const declineEntry = [...req.approvalHistory].reverse().find(e => e.action === 'Declined');
+      return declineEntry?.comment;
+    }
+    return null;
+  };
+
   useEffect(() => {
     fetchMyRequests();
   }, [API_BASE_URL, user.email, token]);
@@ -187,51 +196,59 @@ function StaffDashboard() {
                       </td>
                     </tr>
                   ) : (
-                    myRequests.map((req) => (
-                      <tr key={req._id} className="text-sm font-bold text-gray-600 hover:bg-[#FBF9F6] transition-all group">
-                        <td className="py-6 whitespace-nowrap text-[11px] font-black text-gray-400">
-                          {new Date(req.createdAt).toLocaleDateString('en-GB')}
-                        </td>
-                        <td className="py-6">
-                          <p className="font-black text-gray-900 uppercase text-xs tracking-tight">{req.vendorName || "General Requisition"}</p>
-                          <p className="text-[9px] text-gray-400 mt-1 italic">REF: #{req._id.slice(-6)}</p>
-                        </td>
-                        <td className="py-6 whitespace-nowrap font-black text-[#A67C52] text-xs">
-                          {req.currency} {req.amount.toLocaleString()}
-                        </td>
-                        <td className="py-6">
-                          <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status, req.currentStage)}`}>
-                            {formatStatusText(req.status, req.currentStage)}
-                          </span>
-                        </td>
-                        <td className="py-6 text-right flex justify-end gap-3 items-center">
-                          <button 
-                            onClick={() => generateRequisitionPDF(req)}
-                            className="w-10 h-10 bg-gray-50 hover:bg-black hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90 shadow-sm border border-gray-100"
-                            title="Export PDF"
-                          >
-                            <span className="text-sm">📄</span>
-                          </button>
-
-                          {/* UPDATED: Show Edit button if Pending at HOD stage OR if the request was Declined */}
-                          {(
-                            (req.status === 'Pending' && String(req.currentStage).toUpperCase() === 'HOD') || 
-                            (req.status === 'Declined')
-                          ) && (
+                    myRequests.map((req) => {
+                      const comment = getDeclineComment(req);
+                      return (
+                        <tr key={req._id} className="text-sm font-bold text-gray-600 hover:bg-[#FBF9F6] transition-all group">
+                          <td className="py-6 whitespace-nowrap text-[11px] font-black text-gray-400">
+                            {new Date(req.createdAt).toLocaleDateString('en-GB')}
+                          </td>
+                          <td className="py-6">
+                            <p className="font-black text-gray-900 uppercase text-xs tracking-tight">{req.vendorName || "General Requisition"}</p>
+                            <p className="text-[9px] text-gray-400 mt-1 italic">REF: #{req._id.slice(-6)}</p>
+                            {comment && (
+                              <div className="mt-2 p-2 bg-red-50 border-l-2 border-red-500 rounded">
+                                <p className="text-[8px] font-black text-red-600 uppercase">Rejection Reason:</p>
+                                <p className="text-[9px] font-bold text-red-800 italic">"{comment}"</p>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-6 whitespace-nowrap font-black text-[#A67C52] text-xs">
+                            {req.currency} {req.amount.toLocaleString()}
+                          </td>
+                          <td className="py-6">
+                            <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status, req.currentStage)}`}>
+                              {formatStatusText(req.status, req.currentStage)}
+                            </span>
+                          </td>
+                          <td className="py-6 text-right flex justify-end gap-3 items-center">
                             <button 
-                              onClick={() => navigate(`/edit-requisition/${req._id}`)}
-                              className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
-                                req.status === 'Declined' 
-                                  ? 'bg-red-500 text-white hover:bg-red-600' 
-                                  : 'bg-black text-white hover:bg-[#A67C52]'
-                              }`}
+                              onClick={() => generateRequisitionPDF(req)}
+                              className="w-10 h-10 bg-gray-50 hover:bg-black hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90 shadow-sm border border-gray-100"
+                              title="Export PDF"
                             >
-                              {req.status === 'Declined' ? 'Edit & Resubmit' : 'Edit'}
+                              <span className="text-sm">📄</span>
                             </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+
+                            {(
+                              (req.status === 'Pending' && String(req.currentStage).toUpperCase() === 'HOD') || 
+                              (req.status === 'Declined')
+                            ) && (
+                              <button 
+                                onClick={() => navigate(`/edit-requisition/${req._id}`)}
+                                className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                                  req.status === 'Declined' 
+                                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                                    : 'bg-black text-white hover:bg-[#A67C52]'
+                                }`}
+                              >
+                                {req.status === 'Declined' ? 'Edit & Resubmit' : 'Edit'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
