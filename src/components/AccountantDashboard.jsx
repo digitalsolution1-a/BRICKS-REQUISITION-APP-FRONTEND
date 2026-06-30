@@ -37,7 +37,7 @@ const AccountantDashboard = () => {
         axios.get(`${API_BASE_URL}/requisitions/pending/ACCOUNTANT`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API_BASE_URL}/requisitions/history`, {
+        axios.get(`${API_BASE_URL}/requisitions/history/ACCOUNTANT`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/requisitions/all`, {
