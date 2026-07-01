@@ -89,9 +89,29 @@ const AccountantDashboard = () => {
     const filteredData = filterList(dataToExport);
     if (filteredData.length === 0) return toast.error("No data to export");
     
-    const headers = "ID,Date,Due Date,Requester,Dept,Vendor,Amount,Currency,Status\n";
+    // Updated Headers
+    const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Amount,Currency,Status,Narrative\n";
+    
+    // Updated Row Mapping with CSV cleaning
     const rows = filteredData.map(r => {
-      return `${r._id},${new Date(r.createdAt).toLocaleDateString()},${new Date(r.dueDate).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${r.amount},${r.currency},${r.status}`;
+      const clean = (val) => (val ? String(val).replace(/,/g, ' ') : 'N/A');
+      
+      return [
+        r._id,
+        new Date(r.createdAt).toLocaleDateString(),
+        new Date(r.dueDate).toLocaleDateString(),
+        clean(r.requesterName),
+        clean(r.department),
+        clean(r.vendorName),
+        clean(r.poNumber),
+        clean(r.daRefNo),
+        clean(r.beneficiaryDetails),
+        clean(r.modeOfPayment),
+        r.amount,
+        r.currency,
+        r.status,
+        clean(r.requestNarrative || r.description)
+      ].join(",");
     }).join("\n");
 
     const blob = new Blob([headers + rows], { type: 'text/csv' });
@@ -197,7 +217,6 @@ const AccountantDashboard = () => {
             </p>
           </div>
           
-          {/* Dashboard Context Mobile Selector Link */}
           <div className="flex md:hidden bg-white p-1 rounded-xl border border-gray-200 w-full gap-1 justify-between mb-2">
             <button onClick={() => setView('queue')} className={`flex-1 py-2 text-center rounded-lg text-[8px] font-black ${view === 'queue' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>QUEUE</button>
             <button onClick={() => setView('history')} className={`flex-1 py-2 text-center rounded-lg text-[8px] font-black ${view === 'history' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>HISTORY</button>
