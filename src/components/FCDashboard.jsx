@@ -40,7 +40,7 @@ const FCDashboard = () => {
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API_BASE_URL}/requisitions/history`, {
+        axios.get(`${API_BASE_URL}/requisitions/history/FC`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/requisitions/all`, {
