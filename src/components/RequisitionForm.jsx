@@ -35,7 +35,7 @@ function RequisitionForm() {
     beneficiaryDetails: '', 
     currency: 'NGN',
     otherCurrency: '',
-    amount: '', // Backend data layer (remains clean of commas)
+    amount: '', 
     amountInWords: '',
     dueDate: '',
     requestNarrative: '',
@@ -43,7 +43,6 @@ function RequisitionForm() {
     hodForApproval: '', 
   });
 
-  // NEW UI LAYER STATE: Track visually formatted comma configuration separately
   const [displayAmount, setDisplayAmount] = useState('');
 
   useEffect(() => {
@@ -61,24 +60,15 @@ function RequisitionForm() {
     setFormData({ ...formData, [name]: value });
   };
 
-  // Specific handler separating display string format from numerical context
   const handleAmountChange = (e) => {
     const inputValue = e.target.value;
-
-    // 1. Clean characters out except digits and single float point markers
     const rawValue = inputValue.replace(/[^0-9.]/g, '');
-
-    // 2. Prevent structural break caused by dual full stops
     const parts = rawValue.split('.');
     if (parts.length > 2) return;
-
-    // 3. Regex string formatting layout execution
     if (parts[0]) {
       parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
     const formattedValue = parts.join('.');
-
-    // 4. Double update allocation mapping
     setDisplayAmount(formattedValue);
     setFormData(prev => ({ ...prev, amount: rawValue }));
   };
@@ -91,9 +81,17 @@ function RequisitionForm() {
     e.preventDefault();
     setLoading(true);
 
+    // Create copy for submission to swap "Others" for actual value
+    const submissionData = { ...formData };
+    if (submissionData.clientName === 'Others' && submissionData.otherClient) {
+        submissionData.clientName = submissionData.otherClient;
+    }
+    if (submissionData.vendorName === 'Others' && submissionData.otherVendor) {
+        submissionData.vendorName = submissionData.otherVendor;
+    }
+
     const data = new FormData();
-    // Using a dynamic loop to ensure all form fields are included
-    Object.entries(formData).forEach(([key, value]) => {
+    Object.entries(submissionData).forEach(([key, value]) => {
       data.append(key, value);
     });
     
@@ -124,7 +122,6 @@ function RequisitionForm() {
   return (
     <div className="min-h-screen bg-[#f8f9fa] py-12 px-4">
       <div className="max-w-4xl mx-auto bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
-        
         <div className="bg-[#A67C52] p-10 text-white flex justify-between items-center shadow-lg">
           <div>
             <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">BRICKS REQUISITION</h1>
@@ -137,29 +134,14 @@ function RequisitionForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-10">
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Name</label>
-              <input 
-                type="text" 
-                name="requesterName" 
-                value={formData.requesterName} 
-                onChange={handleInputChange}
-                required
-                className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all"
-                placeholder="Full Name"
-              />
+              <input type="text" name="requesterName" value={formData.requesterName} onChange={handleInputChange} required className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" placeholder="Full Name" />
             </div>
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Requester Email</label>
-              <input 
-                type="email" 
-                name="requesterEmail" 
-                value={formData.requesterEmail} 
-                readOnly 
-                className="bg-gray-100 border-b-2 p-3 outline-none font-bold text-sm text-gray-500 cursor-not-allowed"
-              />
+              <input type="email" name="requesterEmail" value={formData.requesterEmail} readOnly className="bg-gray-100 border-b-2 p-3 outline-none font-bold text-sm text-gray-500 cursor-not-allowed" />
             </div>
           </div>
 
@@ -210,47 +192,47 @@ function RequisitionForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Assignment</label>
-                <select name="clientName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                <select name="clientName" value={formData.clientName} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                   {CLIENTS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 {formData.clientName === 'Others' && (
-                  <input name="otherClient" placeholder="Enter Client Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
+                  <input name="otherClient" value={formData.otherClient} placeholder="Enter Client Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
                 )}
               </div>
               <div className="flex flex-col">
                 <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Vendor</label>
-                <select name="vendorName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                <select name="vendorName" value={formData.vendorName} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
                 {formData.vendorName === 'Others' && (
-                  <input name="otherVendor" placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
+                  <input name="otherVendor" value={formData.otherVendor} placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
                 )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-orange-100/50">
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">P.O Number</label>
-                    <input type="text" name="poNumber" value={formData.poNumber} placeholder="Optional" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Invoice No.</label>
-                    <input type="text" name="invoiceNo" value={formData.invoiceNo} placeholder="Optional" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} />
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">DA Ref No</label>
-                    <select name="daRefNo" value={formData.daRefNo} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                        {DA_REFS.map(ref => <option key={ref} value={ref}>{ref}</option>)}
-                    </select>
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Payment Status</label>
-                    <select name="clientPaymentStatus" value={formData.clientPaymentStatus} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
-                        <option value="N/A">N/A</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Not-paid">Not-paid</option>
-                    </select>
-                </div>
+              <div className="flex flex-col">
+                  <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">P.O Number</label>
+                  <input type="text" name="poNumber" value={formData.poNumber} placeholder="Optional" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} />
+              </div>
+              <div className="flex flex-col">
+                  <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Invoice No.</label>
+                  <input type="text" name="invoiceNo" value={formData.invoiceNo} placeholder="Optional" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange} />
+              </div>
+              <div className="flex flex-col">
+                  <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">DA Ref No</label>
+                  <select name="daRefNo" value={formData.daRefNo} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                    {DA_REFS.map(ref => <option key={ref} value={ref}>{ref}</option>)}
+                  </select>
+              </div>
+              <div className="flex flex-col">
+                  <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 tracking-widest">Client Payment Status</label>
+                  <select name="clientPaymentStatus" value={formData.clientPaymentStatus} className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
+                    <option value="N/A">N/A</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Not-paid">Not-paid</option>
+                  </select>
+              </div>
             </div>
           </div>
 
@@ -282,15 +264,7 @@ function RequisitionForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (Value)</label>
-              <input 
-                type="text" 
-                name="amount" 
-                value={displayAmount}
-                required 
-                placeholder="0.00"
-                className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-black text-2xl text-[#A67C52]" 
-                onChange={handleAmountChange} 
-              />
+              <input type="text" name="amount" value={displayAmount} required placeholder="0.00" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-black text-2xl text-[#A67C52]" onChange={handleAmountChange} />
             </div>
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (In Words)</label>
@@ -303,12 +277,10 @@ function RequisitionForm() {
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Beneficiary Details / Account info</label>
               <input type="text" name="beneficiaryDetails" placeholder="Name, Bank, Account Number" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm" onChange={handleInputChange} />
             </div>
-
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Request Narrative</label>
               <textarea name="requestNarrative" required className="w-full border-2 border-gray-50 p-6 rounded-[2rem] outline-none focus:border-[#A67C52] bg-gray-50 font-bold text-sm leading-relaxed" rows="4" placeholder="Detail the technical or operational need for this request..." onChange={handleInputChange}></textarea>
             </div>
-
             <div className="bg-[#A67C52]/5 border-2 border-dashed border-[#A67C52]/20 p-10 rounded-[2.5rem] text-center group hover:bg-[#A67C52]/10 transition-all">
               <label className="cursor-pointer">
                 <p className="text-[10px] font-black text-[#A67C52] uppercase mb-3 tracking-widest">Supporting Documentation (Invoice/Receipt)</p>
@@ -323,7 +295,6 @@ function RequisitionForm() {
           <button disabled={loading} className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.3em] text-white shadow-2xl transition-all flex items-center justify-center gap-3 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#A67C52] hover:bg-black active:scale-95'}`}>
             {loading ? 'Syncing...' : 'Submit Requisition'}
           </button>
-
         </form>
       </div>
     </div>
