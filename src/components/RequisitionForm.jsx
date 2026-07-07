@@ -222,7 +222,7 @@ function RequisitionForm() {
                 <select name="vendorName" className="bg-white border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                   {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
-                {formData.vendorName === 'OTHERS' && (
+                {formData.vendorName === 'Others' && (
                   <input name="otherVendor" placeholder="Enter Vendor Name" className="mt-3 bg-white border-b p-3 text-sm italic outline-none text-[#A67C52]" onChange={handleInputChange} required />
                 )}
               </div>
