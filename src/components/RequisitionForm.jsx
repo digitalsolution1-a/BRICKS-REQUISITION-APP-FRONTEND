@@ -92,33 +92,13 @@ function RequisitionForm() {
     setLoading(true);
 
     const data = new FormData();
+    // Using a dynamic loop to ensure all form fields are included
+    Object.entries(formData).forEach(([key, value]) => {
+      data.append(key, value);
+    });
+    
     data.append('currentStage', 'HOD');
-    data.append('hodEmail', formData.hodForApproval); 
-    data.append('requester', formData.requester);
-    data.append('requesterName', formData.requesterName);
-    data.append('requesterEmail', formData.requesterEmail);
-    data.append('department', formData.department);
-    data.append('hodForApproval', formData.hodForApproval);
-    data.append('requestOption', formData.requestOption);
-    data.append('requestType', formData.requestType);
-    data.append('procurementType', formData.procurementType);
-    data.append('clientName', formData.clientName);
-    data.append('otherClient', formData.otherClient);
-    data.append('vendorName', formData.vendorName);
-    data.append('otherVendor', formData.otherVendor);
-    data.append('poNumber', formData.poNumber);
-    data.append('daRefNo', formData.daRefNo);
-    data.append('invoiceNo', formData.invoiceNo); 
-    data.append('clientPaymentStatus', formData.clientPaymentStatus);
-    data.append('modeOfPayment', formData.modeOfPayment);
-    data.append('beneficiaryDetails', formData.beneficiaryDetails || 'N/A');
-    data.append('currency', formData.currency);
-    data.append('otherCurrency', formData.otherCurrency);
-    data.append('amount', formData.amount); // Clean numeric variable successfully assigned
-    data.append('amountInWords', formData.amountInWords);
-    data.append('dueDate', formData.dueDate);
-    data.append('requestNarrative', formData.requestNarrative);
-
+    
     if (file) data.append('document', file);
 
     const config = {
@@ -300,7 +280,6 @@ function RequisitionForm() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* AMOUNT VIEW ADJUSTMENT - MOVED TO TEXT TYPE TO ACCEPT STRINGS WITH COMMAS */}
             <div className="flex flex-col">
               <label className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Amount (Value)</label>
               <input 
