@@ -20,6 +20,12 @@ const MDDashboard = () => {
     Notification.permission === 'granted'
   );
 
+  const APPROVAL_TEMPLATES = [
+    "Pay via Accessplus",
+    "Pay via Fidelity",
+    "Authorize for immediate payment"
+  ];
+
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
@@ -383,6 +389,17 @@ const MDDashboard = () => {
                 <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">
                   {selectedReq.isArchiveView ? 'Append Audit / Structural Memo' : 'MD Disbursement Instructions'}
                 </p>
+                
+                {!selectedReq.isArchiveView && (
+                  <select 
+                    onChange={(e) => setMdComment(e.target.value)}
+                    className="w-full mb-4 bg-gray-50 border-2 border-gray-100 rounded-xl p-4 text-[10px] font-bold text-gray-600 outline-none focus:border-[#A67C52]"
+                  >
+                    <option value="">-- SELECT QUICK INSTRUCTION --</option>
+                    {APPROVAL_TEMPLATES.map((t, i) => <option key={i} value={t}>{t}</option>)}
+                  </select>
+                )}
+
                 <textarea 
                   value={mdComment} 
                   onChange={(e) => setMdComment(e.target.value)} 
