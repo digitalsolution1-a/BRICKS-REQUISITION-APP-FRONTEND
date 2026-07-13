@@ -404,7 +404,7 @@ const MDDashboard = () => {
 
               <div className="border-t border-gray-100 pt-8">
                 <p className="text-[9px] font-black text-red-500 mb-3 uppercase tracking-widest italic animate-pulse">
-                  * Executive comment/instruction is mandatory
+                  * Final Executive comment/instruction to Account
                 </p>
                 
                 <select 
