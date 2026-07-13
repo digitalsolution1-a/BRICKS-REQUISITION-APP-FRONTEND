@@ -32,17 +32,20 @@ const MDDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // --- UPDATED HELPERS: Filter by 'Approved' status ---
-  const getHODComment = (historyArray) => {
-    if (!historyArray || !Array.isArray(historyArray)) return null;
-    const hodEntry = historyArray.find(entry => entry.actorRole === 'HOD' && entry.status === 'Approved');
-    return hodEntry ? hodEntry.comment : null;
-  };
-
+  // --- UPDATED HELPERS: Targeted Extraction ---
   const getFCComment = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return null;
-    const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC' && entry.status === 'Approved');
+    const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC');
     return fcEntry ? fcEntry.comment : null;
+  };
+
+  const getHODComment = (historyArray) => {
+    if (!historyArray || !Array.isArray(historyArray)) return null;
+    // Find the latest HOD entry
+    const hodEntries = historyArray.filter(entry => entry.actorRole === 'HOD');
+    if (hodEntries.length === 0) return null;
+    const lastHODEntry = hodEntries[hodEntries.length - 1];
+    return { comment: lastHODEntry.comment, name: lastHODEntry.actorName };
   };
 
   const fetchData = async () => {
@@ -74,7 +77,6 @@ const MDDashboard = () => {
         const total = (mdRes.data?.length || 0) + (fcRes.data?.length || 0);
         total > 0 ? navigator.setAppBadge(total) : navigator.clearAppBadge();
       }
-
     } catch (err) {
       console.error("Dashboard Sync Error:", err);
       toast.error("Executive portal sync failed");
@@ -127,23 +129,20 @@ const MDDashboard = () => {
   };
 
   const handleAction = async (id, action, isOverride = false) => {
-    if (!mdComment && action === 'Declined') return toast.error("Reason required to decline.");
+    if (!mdComment || mdComment.trim() === '') {
+      return toast.error("Executive comment is mandatory to proceed.");
+    }
     const loadingToast = toast.loading('Syncing executive decision...');
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
         actorRole: 'MD',
         actorName: user.name || 'MD Office',
-        comment: mdComment || (action === 'Approved' ? 'Final authorization granted.' : ''),
+        comment: mdComment,
         isOverride
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      if (activeTab === 'all' && action === 'Approved') {
-        toast.success("LOG MEMO SAVED", { id: loadingToast });
-      } else {
-        toast.success(action === 'Approved' ? "AUTHORIZED" : "DECLINED", { id: loadingToast });
-      }
-      
+      toast.success(action === 'Approved' ? "AUTHORIZED" : "DECLINED", { id: loadingToast });
       setSelectedReq(null);
       setMdComment('');
       fetchData();
@@ -170,7 +169,6 @@ const MDDashboard = () => {
             <p className="text-[8px] font-bold text-gray-500 uppercase italic">Managing Director Portal</p>
           </div>
         </div>
-        
         <div className="flex items-center gap-4">
           {!notificationsEnabled && (
              <button onClick={handleEnableNotifications} className="hidden md:flex bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
@@ -183,6 +181,7 @@ const MDDashboard = () => {
         </div>
       </nav>
 
+      {/* PROFILE DROPDOWN */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -221,223 +220,98 @@ const MDDashboard = () => {
           </div>
         </div>
 
+        {/* ... [KEEP YOUR EXISTING GRID SECTIONS HERE] ... */}
         {activeTab === 'pending' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
-                <h3 className="text-[10px] font-black text-[#A67C52] tracking-[0.3em]">Direct Authorization</h3>
-                <span className="bg-[#A67C52] text-white text-[8px] font-black px-2 py-0.5 rounded-full">{inbox.length}</span>
-              </div>
-              {filterList(inbox).map(req => (
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-left-2">
-                  <div>
-                    <p className="text-[8px] font-black text-gray-400 mb-1">{req.department}</p>
-                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                    <p className="text-lg font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
-                  </div>
-                  <button onClick={() => setSelectedReq(req)} className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-                    PROCESS
-                  </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <section className="space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
+                  <h3 className="text-[10px] font-black text-[#A67C52] tracking-[0.3em]">Direct Authorization</h3>
+                  <span className="bg-[#A67C52] text-white text-[8px] font-black px-2 py-0.5 rounded-full">{inbox.length}</span>
                 </div>
-              ))}
-              {inbox.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic underline decoration-[#A67C52] underline-offset-4">Queue empty</p>}
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
-                <h3 className="text-[10px] font-black text-red-500 tracking-[0.3em]">FC Oversight (Override)</h3>
-                <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{backlog.length}</span>
-              </div>
-              {filterList(backlog).map(req => (
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border-l-4 border-l-red-500 border-gray-100 shadow-sm flex justify-between items-center opacity-80 hover:opacity-100 transition-all">
-                  <div>
-                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                    <p className="text-[9px] font-bold text-red-500 italic mt-1 uppercase">Awaiting Finance Clearance</p>
+                {filterList(inbox).map(req => (
+                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all">
+                    <div>
+                      <p className="text-[8px] font-black text-gray-400 mb-1">{req.department}</p>
+                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                      <p className="text-lg font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                    </div>
+                    <button onClick={() => setSelectedReq(req)} className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">PROCESS</button>
                   </div>
-                  <button onClick={() => { setSelectedReq({ ...req, isOverride: true }) }} className="bg-red-500 text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all">
-                    OVERRIDE
-                  </button>
+                ))}
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
+                  <h3 className="text-[10px] font-black text-red-500 tracking-[0.3em]">FC Oversight (Override)</h3>
+                  <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{backlog.length}</span>
                 </div>
-              ))}
-              {backlog.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic">No overrides needed</p>}
-            </section>
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <RequisitionHistory requisitions={filterList(history)} />
-        )}
-
-        {activeTab === 'all' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filterList(allDepartments).map(req => (
-              <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-                      req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
-                      req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
-                    }`}>{req.status}</span>
-                    <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
-                    <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+                {filterList(backlog).map(req => (
+                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border-l-4 border-l-red-500 border-gray-100 shadow-sm flex justify-between items-center opacity-80 hover:opacity-100 transition-all">
+                    <div>
+                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                      <p className="text-[9px] font-bold text-red-500 italic mt-1 uppercase">Awaiting Finance Clearance</p>
+                    </div>
+                    <button onClick={() => { setSelectedReq({ ...req, isOverride: true }) }} className="bg-red-500 text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all">OVERRIDE</button>
                   </div>
-                  <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                  <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
-                </div>
-                <button onClick={() => setSelectedReq({ ...req, isArchiveView: true })} className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-                  VIEW
-                </button>
-              </div>
-            ))}
-            {allDepartments.length === 0 && (
-              <div className="col-span-full text-center py-20 text-gray-300 text-[10px] font-black italic">No historic files recorded</div>
-            )}
-          </div>
+                ))}
+              </section>
+            </div>
         )}
+        
+        {/* ... [KEEP YOUR HISTORY AND ALL TABS HERE] ... */}
+
       </main>
 
+      {/* MODAL */}
       {selectedReq && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-start mb-8">
+          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto p-12">
+            <div className="flex justify-between items-start mb-8">
                 <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
-                    {selectedReq.isArchiveView ? 'ALL REQUEST RECORDS' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] underline-offset-8">
+                    {selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
                   </h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
-                    ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
-                  </p>
                 </div>
-                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
-              </div>
-
-              {selectedReq.isOverride && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-[2rem] text-[9px] font-black uppercase tracking-widest flex items-center gap-3">
-                  <span>⚠️</span> YOU ARE PERFORMING A FINANCE OVERRIDE ON THIS REQUEST
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
-                  <p className="text-xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
-                </div>
-                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.poNumber || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">DA Ref No</p>
-                  <p className="text-xs font-black text-gray-800">{selectedReq.daRefNo || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
-                  <p className={`text-xs font-black ${selectedReq.paymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
-                    {selectedReq.paymentStatus || 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Staff / Vendor</p>
-                  <p className="text-[11px] font-black text-gray-800 uppercase">
-                    {selectedReq.requesterName} {selectedReq.vendorName ? `→ ${selectedReq.vendorName}` : ''}
-                  </p>
-                </div>
-                <div className="bg-gray-900 p-6 rounded-[2rem] border border-[#A67C52]/30 text-white">
-                  <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
-                  <p className="text-[10px] font-bold tracking-wider leading-relaxed">
-                    {selectedReq.beneficiaryDetails || 'NOT SPECIFIED'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-6 mb-10">
-                <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100 shadow-inner">
-                  <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
-                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
-                    "{selectedReq.requestNarrative || selectedReq.description || 'No description provided.'}"
-                  </p>
-                </div>
-
-                {/* HOD AND FC REMARKS */}
-                {getHODComment(selectedReq.approvalHistory) && (
-                  <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-[2rem] border border-blue-100">
-                    <p className="text-[9px] font-black text-blue-500 mb-2 uppercase tracking-[0.2em]">HOD Remarks</p>
-                    <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
-                      "{getHODComment(selectedReq.approvalHistory)}"
-                    </p>
-                  </div>
-                )}
-                {getFCComment(selectedReq.approvalHistory) && (
-                  <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
-                    <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
-                    <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
-                      "{getFCComment(selectedReq.approvalHistory)}"
-                    </p>
-                  </div>
-                )}
-
-                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-4 bg-gray-50 overflow-hidden">
-                  <p className="text-[9px] font-black text-gray-400 mb-4 ml-2 uppercase tracking-widest">Supporting Documentation Preview</p>
-                  {selectedReq.attachmentUrl ? (
-                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 relative">
-                      <iframe 
-                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
-                        className="w-full h-full border-none"
-                        title="Supporting Document"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-40 flex items-center justify-center">
-                      <p className="text-[9px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-6 py-2 rounded-full">No Attachment Available</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-8">
-                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">
-                  {selectedReq.isArchiveView ? 'Append Audit / Structural Memo' : 'MD Disbursement Instructions'}
-                </p>
-                
-                {!selectedReq.isArchiveView && (
-                  <select 
-                    onChange={(e) => setMdComment(e.target.value)}
-                    className="w-full mb-4 bg-gray-50 border-2 border-gray-100 rounded-xl p-4 text-[10px] font-bold text-gray-600 outline-none focus:border-[#A67C52]"
-                  >
-                    <option value="">-- SELECT QUICK INSTRUCTION --</option>
-                    {APPROVAL_TEMPLATES.map((t, i) => <option key={i} value={t}>{t}</option>)}
-                  </select>
-                )}
-
-                <textarea 
-                  value={mdComment} 
-                  onChange={(e) => setMdComment(e.target.value)} 
-                  placeholder={selectedReq.isArchiveView ? "Add executive structural notes to history log..." : selectedReq.isOverride ? "Provide reason for finance override..." : "Final notes for accounting department..."}
-                  className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
-                />
-                
-                <div className="flex flex-col md:flex-row gap-4">
-                  <button 
-                    onClick={() => handleAction(selectedReq._id, 'Approved', selectedReq.isOverride)} 
-                    className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
-                  >
-                    {selectedReq.isArchiveView ? 'LOG VIEW COMMENT' : 'AUTHORIZE PAYMENT'}
-                  </button>
-                  {!selectedReq.isArchiveView && (
-                    <button 
-                      onClick={() => handleAction(selectedReq._id, 'Declined', selectedReq.isOverride)} 
-                      className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95"
-                    >
-                      DECLINE
-                    </button>
-                  )}
-                </div>
-              </div>
+                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full font-black hover:bg-red-50">✕</button>
             </div>
+
+            {/* HOD AND FC REMARKS LOGIC */}
+            <div className="space-y-4 mb-8">
+              {(() => {
+                const hod = getHODComment(selectedReq.approvalHistory);
+                const fc = getFCComment(selectedReq.approvalHistory);
+
+                // OVERRIDE VIEW: Only show HOD
+                if (selectedReq.isOverride) {
+                  return hod ? (
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-[2rem] border border-blue-100">
+                      <p className="text-[9px] font-black text-blue-500 mb-2 uppercase tracking-[0.2em]">HOD REMARKS (CONTEXT FOR OVERRIDE)</p>
+                      <p className="text-[11px] font-bold text-gray-700 italic">"{hod.comment}"</p>
+                    </div>
+                  ) : null;
+                }
+
+                // REGULAR VIEW: Show Both
+                return (
+                  <>
+                    {hod && (
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-[2rem] border border-blue-100">
+                        <p className="text-[9px] font-black text-blue-500 mb-2 uppercase tracking-[0.2em]">HOD REMARKS ({hod.name})</p>
+                        <p className="text-[11px] font-bold text-gray-700 italic">"{hod.comment}"</p>
+                      </div>
+                    )}
+                    {fc && (
+                      <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
+                        <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">FINANCE CONTROLLER REMARKS</p>
+                        <p className="text-[11px] font-bold text-gray-700 italic">"{fc}"</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* ... [REST OF YOUR MODAL INPUTS AND BUTTONS] ... */}
           </div>
         </div>
       )}
