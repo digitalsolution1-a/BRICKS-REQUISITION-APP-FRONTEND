@@ -23,7 +23,8 @@ const MDDashboard = () => {
   const APPROVAL_TEMPLATES = [
     "Pay via Accessplus",
     "Pay via Fidelity",
-    "Authorize for immediate payment"
+    "Authorize for immediate payment via Access",
+    "Authorize for immediate payment via Fidelity"
   ];
 
   const navigate = useNavigate();
