@@ -24,7 +24,7 @@ const MDDashboard = () => {
     "Pay via Accessplus",
     "Pay via Fidelity",
     "Authorize for immediate payment via Access",
-	  "Authorize for immediate payment via Fidelity"
+    "Authorize for immediate payment via Fidelity"
   ];
 
   const navigate = useNavigate();
@@ -32,17 +32,17 @@ const MDDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // --- HELPERS TO EXTRACT COMMENTS ---
-  const getFCComment = (historyArray) => {
-    if (!historyArray || !Array.isArray(historyArray)) return null;
-    const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC');
-    return fcEntry ? fcEntry.comment : null;
-  };
-
+  // --- UPDATED HELPERS: Filter by 'Approved' status ---
   const getHODComment = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return null;
-    const hodEntry = [...historyArray].find(entry => entry.actorRole === 'HOD');
-    return hodEntry ? { comment: hodEntry.comment, name: hodEntry.actorName } : null;
+    const hodEntry = historyArray.find(entry => entry.actorRole === 'HOD' && entry.status === 'Approved');
+    return hodEntry ? hodEntry.comment : null;
+  };
+
+  const getFCComment = (historyArray) => {
+    if (!historyArray || !Array.isArray(historyArray)) return null;
+    const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC' && entry.status === 'Approved');
+    return fcEntry ? fcEntry.comment : null;
   };
 
   const fetchData = async () => {
@@ -127,18 +127,14 @@ const MDDashboard = () => {
   };
 
   const handleAction = async (id, action, isOverride = false) => {
-    // MANDATORY COMMENT CHECK
-    if (!mdComment || mdComment.trim() === '') {
-      return toast.error("Executive comment is mandatory to proceed.");
-    }
-
+    if (!mdComment && action === 'Declined') return toast.error("Reason required to decline.");
     const loadingToast = toast.loading('Syncing executive decision...');
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
         action,
         actorRole: 'MD',
         actorName: user.name || 'MD Office',
-        comment: mdComment,
+        comment: mdComment || (action === 'Approved' ? 'Final authorization granted.' : ''),
         isOverride
       }, { headers: { Authorization: `Bearer ${token}` } });
 
@@ -316,14 +312,12 @@ const MDDashboard = () => {
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
 
-              {/* OVERRIDE BADGE */}
               {selectedReq.isOverride && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-[2rem] text-[9px] font-black uppercase tracking-widest flex items-center gap-3">
                   <span>⚠️</span> YOU ARE PERFORMING A FINANCE OVERRIDE ON THIS REQUEST
                 </div>
               )}
 
-              {/* CORE METRICS GRID */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
@@ -345,7 +339,6 @@ const MDDashboard = () => {
                 </div>
               </div>
 
-              {/* SECONDARY INFO GRID */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Staff / Vendor</p>
@@ -370,29 +363,22 @@ const MDDashboard = () => {
                 </div>
 
                 {/* HOD AND FC REMARKS */}
-                <div className="space-y-4">
-                  {(() => {
-                    const hod = getHODComment(selectedReq.approvalHistory);
-                    const fc = getFCComment(selectedReq.approvalHistory);
-                    if (!hod && !fc) return null;
-                    return (
-                      <>
-                        {hod && (
-                          <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-[2rem] border border-blue-100">
-                            <p className="text-[9px] font-black text-blue-500 mb-2 uppercase tracking-[0.2em]">Head of Dept Remarks ({hod.name})</p>
-                            <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">"{hod.comment}"</p>
-                          </div>
-                        )}
-                        {fc && (
-                          <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
-                            <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
-                            <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">"{fc}"</p>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                {getHODComment(selectedReq.approvalHistory) && (
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-[2rem] border border-blue-100">
+                    <p className="text-[9px] font-black text-blue-500 mb-2 uppercase tracking-[0.2em]">HOD Remarks</p>
+                    <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
+                      "{getHODComment(selectedReq.approvalHistory)}"
+                    </p>
+                  </div>
+                )}
+                {getFCComment(selectedReq.approvalHistory) && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
+                    <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
+                    <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">
+                      "{getFCComment(selectedReq.approvalHistory)}"
+                    </p>
+                  </div>
+                )}
 
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-4 bg-gray-50 overflow-hidden">
                   <p className="text-[9px] font-black text-gray-400 mb-4 ml-2 uppercase tracking-widest">Supporting Documentation Preview</p>
@@ -413,8 +399,8 @@ const MDDashboard = () => {
               </div>
 
               <div className="border-t border-gray-100 pt-8">
-                <p className="text-[9px] font-black text-red-500 mb-3 uppercase tracking-widest italic animate-pulse">
-                  * Executive comment/instruction is mandatory
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">
+                  {selectedReq.isArchiveView ? 'Append Audit / Structural Memo' : 'MD Disbursement Instructions'}
                 </p>
                 
                 {!selectedReq.isArchiveView && (
@@ -430,7 +416,7 @@ const MDDashboard = () => {
                 <textarea 
                   value={mdComment} 
                   onChange={(e) => setMdComment(e.target.value)} 
-                  placeholder="Enter mandatory executive instructions or remarks here..."
+                  placeholder={selectedReq.isArchiveView ? "Add executive structural notes to history log..." : selectedReq.isOverride ? "Provide reason for finance override..." : "Final notes for accounting department..."}
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
                 />
                 
