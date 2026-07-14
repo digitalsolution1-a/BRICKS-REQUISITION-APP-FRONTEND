@@ -17,14 +17,13 @@ const MDDashboard = () => {
   
   const [showProfile, setShowProfile] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
-    'Notification' in window && Notification.permission === 'granted'
+    Notification.permission === 'granted'
   );
 
   const APPROVAL_TEMPLATES = [
     "Pay via Accessplus",
     "Pay via Fidelity",
-    "Authorize for immediate payment via Access",
-    "Authorize for immediate payment via Fidelity"
+    "Authorize for immediate payment"
   ];
 
   const navigate = useNavigate();
@@ -32,6 +31,7 @@ const MDDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  // --- HELPERS TO EXTRACT COMMENTS ---
   const getFCComment = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return null;
     const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC');
@@ -73,6 +73,7 @@ const MDDashboard = () => {
         const total = (mdRes.data?.length || 0) + (fcRes.data?.length || 0);
         total > 0 ? navigator.setAppBadge(total) : navigator.clearAppBadge();
       }
+
     } catch (err) {
       console.error("Dashboard Sync Error:", err);
       toast.error("Executive portal sync failed");
@@ -99,12 +100,11 @@ const MDDashboard = () => {
 
   const filterList = (list) => {
     if (!Array.isArray(list)) return [];
-    const term = searchTerm.toLowerCase();
     return list.filter(req => 
-      req.requesterName?.toLowerCase().includes(term) ||
-      req.vendorName?.toLowerCase().includes(term) ||
-      req.department?.toLowerCase().includes(term) ||
-      req._id.includes(term)
+      req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req._id.includes(searchTerm)
     );
   };
 
@@ -125,22 +125,23 @@ const MDDashboard = () => {
     a.click();
   };
 
-  const handleAction = async (id, action, isOverride = false, isArchiveView = false) => {
-    if (!mdComment || mdComment.trim() === '') {
-      return toast.error("Executive comment is mandatory to proceed.");
-    }
-
+  const handleAction = async (id, action, isOverride = false) => {
+    if (!mdComment && action === 'Declined') return toast.error("Reason required to decline.");
     const loadingToast = toast.loading('Syncing executive decision...');
     try {
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
-        action: isArchiveView ? 'Comment' : action,
+        action,
         actorRole: 'MD',
         actorName: user.name || 'MD Office',
-        comment: mdComment,
+        comment: mdComment || (action === 'Approved' ? 'Final authorization granted.' : ''),
         isOverride
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      toast.success(isArchiveView ? "COMMENT LOGGED" : (action === 'Approved' ? "AUTHORIZED" : "DECLINED"), { id: loadingToast });
+      if (activeTab === 'all' && action === 'Approved') {
+        toast.success("LOG MEMO SAVED", { id: loadingToast });
+      } else {
+        toast.success(action === 'Approved' ? "AUTHORIZED" : "DECLINED", { id: loadingToast });
+      }
       
       setSelectedReq(null);
       setMdComment('');
@@ -307,15 +308,17 @@ const MDDashboard = () => {
                     ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
                   </p>
                 </div>
-                <button onClick={() => {setSelectedReq(null); setMdComment('');}} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
+                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
               </div>
 
+              {/* OVERRIDE BADGE */}
               {selectedReq.isOverride && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-[2rem] text-[9px] font-black uppercase tracking-widest flex items-center gap-3">
                   <span>⚠️</span> YOU ARE PERFORMING A FINANCE OVERRIDE ON THIS REQUEST
                 </div>
               )}
 
+              {/* CORE METRICS GRID */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
@@ -337,6 +340,7 @@ const MDDashboard = () => {
                 </div>
               </div>
 
+              {/* SECONDARY INFO GRID */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Staff / Vendor</p>
@@ -360,6 +364,7 @@ const MDDashboard = () => {
                   </p>
                 </div>
 
+                {/* HOD AND FC REMARKS */}
                 <div className="space-y-4">
                   {(() => {
                     const hod = getHODComment(selectedReq.approvalHistory);
@@ -403,31 +408,33 @@ const MDDashboard = () => {
               </div>
 
               <div className="border-t border-gray-100 pt-8">
-                <p className="text-[9px] font-black text-red-500 mb-3 uppercase tracking-widest italic animate-pulse">
-                  * Final Executive comment/instruction
+                <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">
+                  {selectedReq.isArchiveView ? 'Append Audit / Structural Memo' : 'MD Disbursement Instructions'}
                 </p>
                 
-                <select 
-                  onChange={(e) => setMdComment(e.target.value)}
-                  className="w-full mb-4 bg-gray-50 border-2 border-gray-100 rounded-xl p-4 text-[10px] font-bold text-gray-600 outline-none focus:border-[#A67C52]"
-                >
-                  <option value="">-- SELECT QUICK INSTRUCTION --</option>
-                  {APPROVAL_TEMPLATES.map((t, i) => <option key={i} value={t}>{t}</option>)}
-                </select>
+                {!selectedReq.isArchiveView && (
+                  <select 
+                    onChange={(e) => setMdComment(e.target.value)}
+                    className="w-full mb-4 bg-gray-50 border-2 border-gray-100 rounded-xl p-4 text-[10px] font-bold text-gray-600 outline-none focus:border-[#A67C52]"
+                  >
+                    <option value="">-- SELECT QUICK INSTRUCTION --</option>
+                    {APPROVAL_TEMPLATES.map((t, i) => <option key={i} value={t}>{t}</option>)}
+                  </select>
+                )}
 
                 <textarea 
                   value={mdComment} 
                   onChange={(e) => setMdComment(e.target.value)} 
-                  placeholder="Enter mandatory executive instructions or remarks here..."
+                  placeholder={selectedReq.isArchiveView ? "Add executive structural notes to history log..." : selectedReq.isOverride ? "Provide reason for finance override..." : "Final notes for accounting department..."}
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
                 />
                 
                 <div className="flex flex-col md:flex-row gap-4">
                   <button 
-                    onClick={() => handleAction(selectedReq._id, 'Approved', selectedReq.isOverride, selectedReq.isArchiveView)} 
+                    onClick={() => handleAction(selectedReq._id, 'Approved', selectedReq.isOverride)} 
                     className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    {selectedReq.isArchiveView ? 'SAVE COMMENT' : 'AUTHORIZE PAYMENT'}
+                    {selectedReq.isArchiveView ? 'LOG VIEW COMMENT' : 'AUTHORIZE PAYMENT'}
                   </button>
                   {!selectedReq.isArchiveView && (
                     <button 
