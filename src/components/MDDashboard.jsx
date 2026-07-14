@@ -21,8 +21,10 @@ const MDDashboard = () => {
   );
 
   const APPROVAL_TEMPLATES = [
-    "Pay via Accessplus",
+    "Pay via Accesspplus",
     "Pay via Fidelity",
+    "Pay via Stirling Bank (CSR)",
+    "Pay via Acccesspplus (USD)",
     "Authorize for immediate payment via Access",
     "Authorize for immediate payment via Fidelity"
   ];
