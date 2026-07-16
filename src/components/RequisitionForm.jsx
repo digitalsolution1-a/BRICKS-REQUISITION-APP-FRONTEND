@@ -81,33 +81,43 @@ function RequisitionForm() {
     e.preventDefault();
     setLoading(true);
 
-    // Create copy for submission to swap "Others" for actual value
-    const submissionData = { ...formData };
-    if (submissionData.clientName === 'Others' && submissionData.otherClient) {
-        submissionData.clientName = submissionData.otherClient;
-    }
-    if (submissionData.vendorName === 'Others' && submissionData.otherVendor) {
-        submissionData.vendorName = submissionData.otherVendor;
-    }
-
     const data = new FormData();
-    Object.entries(submissionData).forEach(([key, value]) => {
-      data.append(key, value);
-    });
     
+    // Explicit mapping to ensure backend schema matches
+    data.append('requester', formData.requester);
+    data.append('requesterName', formData.requesterName);
+    data.append('requesterEmail', formData.requesterEmail);
+    data.append('requestOption', formData.requestOption);
+    data.append('requestType', formData.requestType);
+    data.append('clientName', formData.clientName);
+    data.append('otherClientDetails', formData.clientName === 'Others' ? formData.otherClient : '');
+    data.append('procurementType', formData.procurementType);
+    data.append('vendorName', formData.vendorName);
+    data.append('otherVendorName', formData.vendorName === 'Others' ? formData.otherVendor : '');
+    data.append('poNumber', formData.poNumber || 'N/A');
+    data.append('daRefNo', formData.daRefNo || 'N/A');
+    data.append('invoiceNo', formData.invoiceNo || 'N/A');
+    data.append('clientPaymentStatus', formData.clientPaymentStatus);
+    data.append('modeOfPayment', formData.modeOfPayment);
+    data.append('beneficiaryDetails', formData.beneficiaryDetails);
+    data.append('currency', formData.currency);
+    data.append('amount', formData.amount);
+    data.append('amountInWords', formData.amountInWords);
+    data.append('dueDate', formData.dueDate);
+    data.append('requestNarrative', formData.requestNarrative);
+    data.append('department', formData.department);
+    data.append('hodForApproval', formData.hodForApproval);
     data.append('currentStage', 'HOD');
     
     if (file) data.append('document', file);
 
-    const config = {
-      headers: { 
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      }
-    };
-
     try {
-      await axios.post(`${API_BASE_URL}/requisitions/submit`, data, config);
+      await axios.post(`${API_BASE_URL}/requisitions/submit`, data, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+        }
+      });
       alert("✅ REQUISITION SUBMITTED TO HOD FOR APPROVAL");
       window.location.href = '/staff-dashboard'; 
     } catch (err) {
