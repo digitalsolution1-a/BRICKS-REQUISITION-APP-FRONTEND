@@ -252,6 +252,7 @@ function RequisitionForm() {
               <select name="modeOfPayment" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                 <option value="Cash">Petty Cash</option>
                 <option value="Transfer">Bank Transfer</option>
+                <option value="Remita">Remita</option>
               </select>
             </div>
             <div className="flex flex-col">
