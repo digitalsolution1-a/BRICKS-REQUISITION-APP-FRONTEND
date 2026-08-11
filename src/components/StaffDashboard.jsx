@@ -47,7 +47,7 @@ function StaffDashboard() {
     return c;
   };
 
-  // Calculate totals separated by currency (NGN, USD, etc.)
+  // Calculate totals separated by currency key (NGN, USD, etc.)
   const totalsByCurrency = myRequests
     .filter(req => {
       const status = String(req.status || '').toUpperCase().trim();
@@ -223,34 +223,33 @@ function StaffDashboard() {
           <div className="md:col-span-3 bg-white rounded-[3rem] p-8 md:p-10 shadow-sm border border-gray-100">
             
             {/* HEADER AREA WITH STAT CARDS */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6 border-b border-gray-50 pb-8">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-6 border-b border-gray-50 pb-8">
               <div>
                 <h2 className="text-2xl font-black uppercase text-gray-900 tracking-tighter italic">Submission <span className="text-[#A67C52]">History</span></h2>
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
               </div>
 
-              {/* STAT CARDS CONTAINER */}
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                {/* MULTI-CURRENCY TOTAL DISBURSED CARD */}
-                <div className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl shadow-md border border-black min-w-[170px]">
-                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Total Disbursed</p>
-                  <div className="mt-1 space-y-1">
-                    {Object.keys(totalsByCurrency).length === 0 ? (
-                      <p className="text-sm font-black tracking-tight">NGN 0</p>
-                    ) : (
-                      Object.entries(totalsByCurrency).map(([curr, total]) => (
-                        <p key={curr} className="text-xs font-black tracking-tight flex items-center justify-between gap-4">
-                          <span className="text-[#A67C52]">{curr}</span>
-                          <span>{total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
-                        </p>
-                      ))
-                    )}
-                  </div>
+              {/* SEPARATE STAT CARDS CONTAINER */}
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                {/* NAIRA DISBURSED CARD */}
+                <div className="flex-1 min-w-[140px] bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black">
+                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Disbursed (NGN)</p>
+                  <p className="text-xs font-black tracking-tight mt-1 text-white">
+                    NGN {(totalsByCurrency['NGN'] || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                {/* DOLLAR DISBURSED CARD */}
+                <div className="flex-1 min-w-[140px] bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black">
+                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Disbursed (USD)</p>
+                  <p className="text-xs font-black tracking-tight mt-1 text-white">
+                    USD ${(totalsByCurrency['USD'] || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </p>
                 </div>
 
                 {/* TOTAL FILES BADGE */}
-                <div className="flex-1 md:flex-none text-center text-[10px] font-black text-[#A67C52] uppercase tracking-[0.1em] bg-[#FBF9F6] border border-[#A67C52]/10 px-5 py-4 rounded-2xl shadow-inner">
-                  Total Files: {filteredRequests.length}
+                <div className="flex-1 min-w-[110px] text-center text-[10px] font-black text-[#A67C52] uppercase tracking-[0.1em] bg-[#FBF9F6] border border-[#A67C52]/10 px-5 py-4 rounded-2xl shadow-inner">
+                  Files: {filteredRequests.length}
                 </div>
               </div>
             </div>
