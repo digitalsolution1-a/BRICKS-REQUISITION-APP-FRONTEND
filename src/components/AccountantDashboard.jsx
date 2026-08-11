@@ -30,13 +30,19 @@ const AccountantDashboard = () => {
 
   // --- HELPER: CALCULATE TOTAL DISBURSED BY CURRENCY ---
   const getTotalDisbursed = () => {
-    if (!Array.isArray(history) || history.length === 0) return { USD: 0 };
+    if (!Array.isArray(history) || history.length === 0) return { USD: 0, NGN: 0 };
     return history.reduce((acc, req) => {
-      const curr = req.currency || 'USD';
+      const rawCurr = (req.currency || 'USD').toUpperCase().trim();
       const amt = Number(req.amount) || 0;
-      acc[curr] = (acc[curr] || 0) + amt;
+
+      // Normalize common currency keys
+      let currKey = rawCurr;
+      if (rawCurr === '$' || rawCurr === 'USD') currKey = 'USD';
+      if (rawCurr === '₦' || rawCurr === 'NGN' || rawCurr === 'NAIRA') currKey = 'NGN';
+
+      acc[currKey] = (acc[currKey] || 0) + amt;
       return acc;
-    }, {});
+    }, { USD: 0, NGN: 0 });
   };
 
   const fetchData = async () => {
@@ -71,7 +77,7 @@ const AccountantDashboard = () => {
     } catch (err) {
       console.error("Treasury Sync Error:", err);
       toast.error("Failed to sync treasury data.");
-    } font-black {
+    } finally {
       setLoading(false);
     }
   };
@@ -220,21 +226,38 @@ const AccountantDashboard = () => {
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* TOP SUMMARY STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 mb-6">
+        {/* KPI SUMMARY CARDS (DOLLAR & NAIRA) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 mb-8">
+          {/* NAIRA DISBURSED */}
           <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Amount Disbursed</p>
-              <div className="flex flex-wrap gap-3">
-                {Object.entries(totals).map(([currency, total]) => (
-                  <p key={currency} className="text-2xl font-black text-gray-900">
-                    {currency} {total.toLocaleString()}
-                  </p>
-                ))}
-              </div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Disbursed (NGN)</p>
+              <p className="text-2xl font-black text-gray-900">₦ {(totals.NGN || 0).toLocaleString()}</p>
             </div>
-            <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 font-black text-xl">
-              💳
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-lg">
+              🇳🇬
+            </div>
+          </div>
+
+          {/* DOLLAR DISBURSED */}
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Disbursed (USD)</p>
+              <p className="text-2xl font-black text-gray-900">$ {(totals.USD || 0).toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-lg">
+              💵
+            </div>
+          </div>
+
+          {/* TOTAL DISBURSED TRANSACTIONS */}
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Paid Requests</p>
+              <p className="text-2xl font-black text-gray-900">{history.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 font-black text-lg">
+              📜
             </div>
           </div>
         </div>
