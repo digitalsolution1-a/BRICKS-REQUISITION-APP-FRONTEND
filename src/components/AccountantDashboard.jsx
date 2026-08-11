@@ -28,57 +28,6 @@ const AccountantDashboard = () => {
     return mdEntry ? mdEntry.comment : "Standard disbursement approved.";
   };
 
-  // --- HELPER: GET MD APPROVED AMOUNT (Raw numeric value) ---
-  const getRawMDApprovedAmount = (historyArray, fallbackAmount) => {
-    if (!historyArray || !Array.isArray(historyArray)) {
-      return Number(fallbackAmount || 0);
-    }
-    const mdEntry = [...historyArray].reverse().find(h => h.actorRole === 'MD');
-    if (mdEntry && mdEntry.approvedAmount !== undefined && mdEntry.approvedAmount !== null) {
-      return Number(mdEntry.approvedAmount);
-    }
-    return Number(fallbackAmount || 0);
-  };
-
-  // --- HELPER: GET MD APPROVED AMOUNT (Formatted string) ---
-  const getMDApprovedAmount = (historyArray, fallbackAmount, currency) => {
-    const amt = getRawMDApprovedAmount(historyArray, fallbackAmount);
-    return `${currency || ''} ${amt.toLocaleString()}`;
-  };
-
-  // --- HELPER: CALCULATE DUAL CURRENCY (USD & NGN) ---
-  // Using an estimated standard fallback conversion rate if currency needs cross-display
-  const getDualCurrencyDisplay = (historyArray, fallbackAmount, currency) => {
-    const rawAmt = getRawMDApprovedAmount(historyArray, fallbackAmount);
-    const curr = (currency || 'USD').toUpperCase();
-    
-    // Approximate conversion rate or direct match
-    // If currency is USD, show USD and estimated NGN (e.g., rate ~ 1362.56)
-    // If currency is NGN, show NGN and estimated USD
-    const USD_TO_NGN_RATE = 1362.56; 
-
-    let usdVal = 0;
-    let ngnVal = 0;
-
-    if (curr === 'USD' || curr === '$') {
-      usdVal = rawAmt;
-      ngnVal = rawAmt * USD_TO_NGN_RATE;
-    } else if (curr === 'NGN' || curr === '₦') {
-      ngnVal = rawAmt;
-      usdVal = rawAmt / USD_TO_NGN_RATE;
-    } else {
-      // Default fallback if currency code is something else
-      usdVal = rawAmt;
-      ngnVal = rawAmt * USD_TO_NGN_RATE;
-    }
-
-    return {
-      primary: `${curr} ${rawAmt.toLocaleString()}`,
-      usd: `$${usdVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      ngn: `₦${ngnVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    };
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -140,8 +89,10 @@ const AccountantDashboard = () => {
     const filteredData = filterList(dataToExport);
     if (filteredData.length === 0) return toast.error("No data to export");
     
+    // Updated Headers
     const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Amount,Currency,Status,Narrative\n";
     
+    // Updated Row Mapping with CSV cleaning
     const rows = filteredData.map(r => {
       const clean = (val) => (val ? String(val).replace(/,/g, ' ') : 'N/A');
       
@@ -288,44 +239,36 @@ const AccountantDashboard = () => {
         <div className="space-y-6">
           {view === 'queue' && (
             <>
-              {filterList(requisitions).map(req => {
-                const dualCurrency = getDualCurrencyDisplay(req.approvalHistory, req.amount, req.currency);
-                return (
-                  <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
-                    <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-4">
-                          <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
-                          <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
-                        </div>
-                        <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
-                        <div className="flex gap-6 mt-2">
-                           <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
-                           <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
-                        </div>
+              {filterList(requisitions).map(req => (
+                <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
+                  <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
+                        <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
                       </div>
-
-                      <div className="flex items-center gap-8">
-                         <div className="text-right">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Approved Amount</p>
-                            <p className="text-2xl font-black text-gray-900">{dualCurrency.primary}</p>
-                            <div className="flex gap-2 justify-end mt-1 text-[9px] font-bold text-gray-500">
-                              <span>USD: <strong className="text-gray-800">{dualCurrency.usd}</strong></span>
-                              <span>•</span>
-                              <span>NGN: <strong className="text-gray-800">{dualCurrency.ngn}</strong></span>
-                            </div>
-                         </div>
-                         <button 
-                          onClick={() => setSelectedReq(req)} 
-                          className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
-                         >
-                           PROCESS PAYMENT
-                         </button>
+                      <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
+                      <div className="flex gap-6 mt-2">
+                         <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
+                         <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-8">
+                       <div className="text-right">
+                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Amount</p>
+                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount.toLocaleString()}</p>
+                       </div>
+                       <button 
+                        onClick={() => setSelectedReq(req)} 
+                        className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
+                       >
+                         PROCESS PAYMENT
+                       </button>
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
               {filterList(requisitions).length === 0 && (
                 <div className="py-32 text-center bg-white border-4 border-dashed border-gray-100 rounded-[3rem]">
                   <p className="text-gray-300 font-black uppercase tracking-[0.4em] text-xs underline decoration-[#A67C52] decoration-2 underline-offset-8">No Pending Disbursements</p>
@@ -340,32 +283,28 @@ const AccountantDashboard = () => {
 
           {view === 'all' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filterList(allDepartments).map(req => {
-                const dualCurrency = getDualCurrencyDisplay(req.approvalHistory, req.amount, req.currency);
-                return (
-                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-                          req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
-                          req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
-                        }`}>{req.status}</span>
-                        <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
-                        <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
-                      </div>
-                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                      <p className="text-base font-black text-[#A67C52] leading-none mt-1">{dualCurrency.primary}</p>
-                      <p className="text-[9px] font-bold text-gray-400 mt-1">USD: {dualCurrency.usd} | NGN: {dualCurrency.ngn}</p>
+              {filterList(allDepartments).map(req => (
+                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                        req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                        req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                      }`}>{req.status}</span>
+                      <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
+                      <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
                     </div>
-                    <button 
-                      onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
-                      className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
-                    >
-                      VIEW
-                    </button>
+                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
                   </div>
-                );
-              })}
+                  <button 
+                    onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
+                    className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
+                  >
+                    VIEW
+                  </button>
+                </div>
+              ))}
               {filterList(allDepartments).length === 0 && (
                 <div className="col-span-full py-20 text-center bg-white border-2 border-dashed border-gray-100 rounded-[2.5rem] text-gray-300 text-[10px] font-black italic">
                   No cross-department system records available.
@@ -403,7 +342,7 @@ const AccountantDashboard = () => {
                   <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">DA Ref Number</p>
                   <p className="text-xs font-bold tracking-widest">{selectedReq.daRefNo || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                <div className="bg-gray-990 p-5 rounded-2xl bg-gray-900 border border-[#A67C52]/50 text-white">
                   <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">Client Payment Status</p>
                   <p className={`text-xs font-bold tracking-widest ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-400' : 'text-orange-400'}`}>
                     {selectedReq.clientPaymentStatus || 'PENDING'}
@@ -419,32 +358,24 @@ const AccountantDashboard = () => {
                 </p>
               </div>
 
-              {(() => {
-                const modalDual = getDualCurrencyDisplay(selectedReq.approvalHistory, selectedReq.amount, selectedReq.currency);
-                return (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                      <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Beneficiary</p>
-                      <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails || 'N/A'}</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                      <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
-                      <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                      <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
-                      <p className="text-[11px] font-black text-red-500">{selectedReq.dueDate ? new Date(selectedReq.dueDate).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                      <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
-                      <p className="text-[11px] font-black text-[#A67C52]">{modalDual.primary}</p>
-                      <div className="text-[8px] font-bold text-gray-500 mt-1">
-                        USD: {modalDual.usd} <br /> NGN: {modalDual.ngn}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Beneficiary</p>
+                  <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
+                  <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
+                  <p className="text-[11px] font-black text-red-500">{selectedReq.dueDate ? new Date(selectedReq.dueDate).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
+                  <p className="text-[11px] font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                </div>
+              </div>
 
               <div className="space-y-6 mb-10 text-left">
                 <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
