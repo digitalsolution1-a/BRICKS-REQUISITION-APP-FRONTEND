@@ -21,11 +21,25 @@ const AccountantDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // --- HELPER: GET MD DISBURSEMENT INSTRUCTIONS ---
+  // --- HELPER: GET MD DISBURSEMENT INSTRUCTIONS & APPROVED AMOUNTS ---
   const getMDInstructions = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return "Standard disbursement approved.";
     const mdEntry = [...historyArray].reverse().find(h => h.actorRole === 'MD');
     return mdEntry ? mdEntry.comment : "Standard disbursement approved.";
+  };
+
+  const getApprovedAmounts = (req) => {
+    if (!req.approvalHistory || !Array.isArray(req.approvalHistory)) {
+      return { amount: req.amount, currency: req.currency };
+    }
+    const mdEntry = [...req.approvalHistory].reverse().find(h => h.actorRole === 'MD');
+    if (mdEntry && mdEntry.approvedAmount !== undefined && mdEntry.approvedAmount !== null) {
+      return {
+        amount: mdEntry.approvedAmount,
+        currency: mdEntry.approvedCurrency || req.currency
+      };
+    }
+    return { amount: req.amount, currency: req.currency };
   };
 
   const fetchData = async () => {
@@ -72,12 +86,27 @@ const AccountantDashboard = () => {
   const filterList = (list) => {
     const data = Array.isArray(list) ? list : [];
     if (!searchTerm) return data;
+    const lowerSearch = searchTerm.toLowerCase();
     return data.filter(req => 
-      req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.vendorName?.toLowerCase().includes(lowerSearch) ||
+      req.requesterName?.toLowerCase().includes(lowerSearch) ||
+      req.department?.toLowerCase().includes(lowerSearch) ||
       req._id?.includes(searchTerm)
     );
+  };
+
+  // --- AUDIT TOTAL CALCULATIONS ---
+  // Calculates totals grouped by currency for accurate auditing between MD Approvals and Accounts
+  const calculateAuditTotals = (list) => {
+    const filtered = filterList(list);
+    const totals = {};
+    filtered.forEach(req => {
+      const approved = getApprovedAmounts(req);
+      const curr = approved.currency || 'USD';
+      const amt = Number(approved.amount) || 0;
+      totals[curr] = (totals[curr] || 0) + amt;
+    });
+    return totals;
   };
 
   const exportToCSV = () => {
@@ -89,17 +118,16 @@ const AccountantDashboard = () => {
     const filteredData = filterList(dataToExport);
     if (filteredData.length === 0) return toast.error("No data to export");
     
-    // Updated Headers
     const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Amount,Currency,Status,Narrative\n";
     
-    // Updated Row Mapping with CSV cleaning
     const rows = filteredData.map(r => {
-      const clean = (val) => (val ? String(val).replace(/,/g, ' ') : 'N/A');
+      const clean = (val) => (val ? String(val).replace(/,/g, ' ').replace(/\n/g, ' ') : 'N/A');
+      const approved = getApprovedAmounts(r);
       
       return [
         r._id,
-        new Date(r.createdAt).toLocaleDateString(),
-        new Date(r.dueDate).toLocaleDateString(),
+        r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'N/A',
+        r.dueDate ? new Date(r.dueDate).toLocaleDateString() : 'N/A',
         clean(r.requesterName),
         clean(r.department),
         clean(r.vendorName),
@@ -107,9 +135,9 @@ const AccountantDashboard = () => {
         clean(r.daRefNo),
         clean(r.beneficiaryDetails),
         clean(r.modeOfPayment),
-        r.amount,
-        r.currency,
-        r.status,
+        approved.amount || 0,
+        approved.currency || 'USD',
+        r.status || 'Pending',
         clean(r.requestNarrative || r.description)
       ].join(",");
     }).join("\n");
@@ -122,14 +150,18 @@ const AccountantDashboard = () => {
     a.click();
   };
 
-  const handlePaymentComplete = async (id) => {
+  const handlePaymentComplete = async (reqItem) => {
     const loadingToast = toast.loading('Recording Disbursement...');
     try {
-      await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
+      const approved = getApprovedAmounts(reqItem);
+
+      await axios.post(`${API_BASE_URL}/requisitions/action/${reqItem._id}`, {
         action: 'Disburse', 
         actorRole: 'ACCOUNTANT',
         actorName: user.name || 'Accounts Dept',
-        comment: 'Disbursement Completed - Funds Released'
+        comment: 'Disbursement Completed - Funds Released',
+        disbursedAmount: approved.amount,
+        disbursedCurrency: approved.currency
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -148,6 +180,10 @@ const AccountantDashboard = () => {
       <p className="text-[10px] font-black text-gray-400 tracking-[0.3em] uppercase">Syncing Accounts...</p>
     </div>
   );
+
+  // Active view totals for Audit Check
+  const activeList = view === 'queue' ? requisitions : view === 'history' ? history : allDepartments;
+  const auditTotals = calculateAuditTotals(activeList);
 
   return (
     <div className="min-h-screen bg-[#F4F7F9] uppercase">
@@ -198,7 +234,7 @@ const AccountantDashboard = () => {
               {user?.name?.substring(0,2).toUpperCase() || 'AC'}
             </div>
             <h4 className="text-sm font-black text-gray-900 leading-none">{user?.name || 'Accountant'}</h4>
-            <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">Account ACCESS: ACTIVE</p>
+            <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">ACCOUNT ACCESS: ACTIVE</p>
           </div>
           <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
             SIGN OUT
@@ -210,7 +246,7 @@ const AccountantDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
-              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All'}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Dashboard' : 'History'}</span>
+              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All '}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Dashboard' : 'History'}</span>
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3 underline decoration-[#A67C52] decoration-2 underline-offset-4">
               {view === 'queue' ? `Upload Queue (${requisitions.length})` : view === 'history' ? `Total Records (${history.length})` : `All Requests (${allDepartments.length})`}
@@ -236,39 +272,65 @@ const AccountantDashboard = () => {
           </div>
         </div>
 
+        {/* --- AUDIT SUMMARY CARD BAR --- */}
+        <div className="bg-black text-white p-6 rounded-[2.5rem] mb-8 shadow-xl flex flex-col md:flex-row justify-between items-center gap-6 border border-[#A67C52]/30">
+          <div>
+            <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-1">Audit Reconciliation Panel</p>
+            <h3 className="text-sm font-bold text-gray-300">Total Processed Amount (MD Approvals vs Accounts):</h3>
+          </div>
+          <div className="flex flex-wrap gap-4 items-center justify-end">
+            {Object.keys(auditTotals).length > 0 ? (
+              Object.entries(auditTotals).map(([currency, totalAmount]) => (
+                <div key={currency} className="bg-white/10 px-6 py-3 rounded-2xl border border-white/10 text-right">
+                  <p className="text-[8px] font-black text-[#A67C52] uppercase tracking-widest">{currency}</p>
+                  <p className="text-xl font-black text-white">{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+              ))
+            ) : (
+              <span className="text-xs font-bold text-gray-500 italic">No records match current filter</span>
+            )}
+          </div>
+        </div>
+
         <div className="space-y-6">
           {view === 'queue' && (
             <>
-              {filterList(requisitions).map(req => (
-                <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
-                  <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
-                        <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
+              {filterList(requisitions).map(req => {
+                const approved = getApprovedAmounts(req);
+                return (
+                  <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
+                    <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-4">
+                          <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
+                          <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id?.slice(-6)}</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
+                        <div className="flex gap-6 mt-2">
+                           <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
+                           <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
+                        </div>
                       </div>
-                      <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
-                      <div className="flex gap-6 mt-2">
-                         <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
-                         <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-8">
-                       <div className="text-right">
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Amount</p>
-                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount.toLocaleString()}</p>
-                       </div>
-                       <button 
-                        onClick={() => setSelectedReq(req)} 
-                        className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
-                       >
-                         PROCESS PAYMENT
-                       </button>
+                      <div className="flex items-center gap-8">
+                         <div className="text-right">
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Approved Amount</p>
+                            <p className="text-2xl font-black text-gray-900">{approved.currency} {approved.amount?.toLocaleString()}</p>
+                            {req.amount !== approved.amount && (
+                              <p className="text-[8px] font-bold text-gray-400 line-through">Orig: {req.currency} {req.amount?.toLocaleString()}</p>
+                            )}
+                         </div>
+                         <button 
+                          onClick={() => setSelectedReq(req)} 
+                          className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
+                         >
+                           PROCESS PAYMENT
+                         </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {filterList(requisitions).length === 0 && (
                 <div className="py-32 text-center bg-white border-4 border-dashed border-gray-100 rounded-[3rem]">
                   <p className="text-gray-300 font-black uppercase tracking-[0.4em] text-xs underline decoration-[#A67C52] decoration-2 underline-offset-8">No Pending Disbursements</p>
@@ -283,28 +345,31 @@ const AccountantDashboard = () => {
 
           {view === 'all' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filterList(allDepartments).map(req => (
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-                        req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
-                        req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
-                      }`}>{req.status}</span>
-                      <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
-                      <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+              {filterList(allDepartments).map(req => {
+                const approved = getApprovedAmounts(req);
+                return (
+                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                          req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                          req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                        }`}>{req.status}</span>
+                        <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
+                        <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+                      </div>
+                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                      <p className="text-base font-black text-[#A67C52] leading-none mt-1">{approved.currency} {approved.amount?.toLocaleString()}</p>
                     </div>
-                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                    <button 
+                      onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
+                      className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
+                    >
+                      VIEW
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
-                    className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
-                  >
-                    VIEW
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {filterList(allDepartments).length === 0 && (
                 <div className="col-span-full py-20 text-center bg-white border-2 border-dashed border-gray-100 rounded-[2.5rem] text-gray-300 text-[10px] font-black italic">
                   No cross-department system records available.
@@ -316,103 +381,109 @@ const AccountantDashboard = () => {
       </main>
 
       {/* DISBURSEMENT MODAL */}
-      {selectedReq && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-start mb-10">
-                <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
-                    {selectedReq.isArchiveView ? 'System Record ' : 'Confirm Disbursement'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">
-                    {selectedReq.isArchiveView ? 'Audit Database Reference' : 'Final Treasury Verification'}: #{selectedReq._id.slice(-6)}
-                  </p>
-                </div>
-                <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
-              </div>
-
-              {/* NEW FIELDS ROW */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
-                  <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">P.O Number</p>
-                  <p className="text-xs font-bold tracking-widest">{selectedReq.poNumber || 'NOT ASSIGNED'}</p>
-                </div>
-                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
-                  <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">DA Ref Number</p>
-                  <p className="text-xs font-bold tracking-widest">{selectedReq.daRefNo || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-990 p-5 rounded-2xl bg-gray-900 border border-[#A67C52]/50 text-white">
-                  <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">Client Payment Status</p>
-                  <p className={`text-xs font-bold tracking-widest ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-400' : 'text-orange-400'}`}>
-                    {selectedReq.clientPaymentStatus || 'PENDING'}
-                  </p>
-                </div>
-              </div>
-
-              {/* EXECUTIVE INSTRUCTION HIGHLIGHT */}
-              <div className="bg-[#FBF9F6] border-2 border-[#A67C52] p-8 rounded-[2.5rem] mb-8 shadow-inner">
-                <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-2 italic">MD's Payment Instructions:</p>
-                <p className="text-lg font-black text-gray-800 italic leading-snug">
-                  "{getMDInstructions(selectedReq.approvalHistory)}"
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Beneficiary</p>
-                  <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
-                  <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
-                  <p className="text-[11px] font-black text-red-500">{selectedReq.dueDate ? new Date(selectedReq.dueDate).toLocaleDateString() : 'N/A'}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
-                  <p className="text-[11px] font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
-                </div>
-              </div>
-
-              <div className="space-y-6 mb-10 text-left">
-                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest italic">Narrative / Description</p>
-                  <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
+      {selectedReq && (() => {
+        const approved = getApprovedAmounts(selectedReq);
+        return (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
+                <div className="flex justify-between items-start mb-10">
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
+                      {selectedReq.isArchiveView ? 'System Record ' : 'Confirm Disbursement'}
+                    </h3>
+                    <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-[0.2em] uppercase">
+                      {selectedReq.isArchiveView ? 'Audit Database Reference' : 'Final Treasury Verification'}: #{selectedReq._id?.slice(-6)}
+                    </p>
+                  </div>
+                  <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest p-4">Proof of Obligation / Invoice</p>
-                  <div className="w-full bg-white rounded-[2rem] p-4 min-h-[300px]">
-                    <AttachmentViewer url={selectedReq.attachmentUrl} />
+                {/* NEW FIELDS ROW */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                    <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">P.O Number</p>
+                    <p className="text-xs font-bold tracking-widest">{selectedReq.poNumber || 'NOT ASSIGNED'}</p>
+                  </div>
+                  <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                    <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">DA Ref Number</p>
+                    <p className="text-xs font-bold tracking-widest">{selectedReq.daRefNo || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
+                    <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">Client Payment Status</p>
+                    <p className={`text-xs font-bold tracking-widest ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-400' : 'text-orange-400'}`}>
+                      {selectedReq.clientPaymentStatus || 'PENDING'}
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* ACTION CONTROL ROW */}
-              <div className="flex gap-4">
-                {selectedReq.isArchiveView ? (
-                  <button 
-                    onClick={() => setSelectedReq(null)} 
-                    className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-[#A67C52] transition-all"
-                  >
-                    CLOSE AUDIT PREVIEW
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => handlePaymentComplete(selectedReq._id)} 
-                    className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-green-600 transition-all active:scale-95"
-                  >
-                    CONFIRM DISBURSEMENT
-                  </button>
-                )}
+                {/* EXECUTIVE INSTRUCTION HIGHLIGHT */}
+                <div className="bg-[#FBF9F6] border-2 border-[#A67C52] p-8 rounded-[2.5rem] mb-8 shadow-inner">
+                  <p className="text-[9px] font-black text-[#A67C52] uppercase tracking-[0.2em] mb-2 italic">MD's Payment Instructions:</p>
+                  <p className="text-lg font-black text-gray-800 italic leading-snug">
+                    "{getMDInstructions(selectedReq.approvalHistory)}"
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Beneficiary</p>
+                    <p className="text-[11px] font-bold text-gray-800 truncate">{selectedReq.beneficiaryDetails || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Mode</p>
+                    <p className="text-[11px] font-bold text-gray-800">{selectedReq.modeOfPayment || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Due Date</p>
+                    <p className="text-[11px] font-black text-red-500">{selectedReq.dueDate ? new Date(selectedReq.dueDate).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Approved Value</p>
+                    <p className="text-[11px] font-black text-[#A67C52]">{approved.currency} {approved.amount?.toLocaleString()}</p>
+                    {selectedReq.amount !== approved.amount && (
+                      <p className="text-[8px] text-gray-400 line-through">Orig: {selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-6 mb-10 text-left">
+                  <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                    <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest italic">Narrative / Description</p>
+                    <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">"{selectedReq.requestNarrative || selectedReq.description}"</p>
+                  </div>
+
+                  <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-2 bg-gray-50">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest p-4">Proof of Obligation / Invoice</p>
+                    <div className="w-full bg-white rounded-[2rem] p-4 min-h-[300px]">
+                      <AttachmentViewer url={selectedReq.attachmentUrl} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ACTION CONTROL ROW */}
+                <div className="flex gap-4">
+                  {selectedReq.isArchiveView ? (
+                    <button 
+                      onClick={() => setSelectedReq(null)} 
+                      className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-[#A67C52] transition-all"
+                    >
+                      CLOSE AUDIT PREVIEW
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handlePaymentComplete(selectedReq)} 
+                      className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-green-600 transition-all active:scale-95"
+                    >
+                      CONFIRM DISBURSEMENT ({approved.currency} {approved.amount?.toLocaleString()})
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
