@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import AttachmentViewer from '../components/AttachmentViewer';
 import RequisitionHistory from '../components/RequisitionHistory';
 
 const MDDashboard = () => {
@@ -17,9 +18,7 @@ const MDDashboard = () => {
   
   const [showProfile, setShowProfile] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
-    typeof window !== 'undefined' && 'Notification' in window
-      ? Notification.permission === 'granted'
-      : false
+    Notification.permission === 'granted'
   );
 
   const APPROVAL_TEMPLATES = [
@@ -32,6 +31,15 @@ const MDDashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Currency normalizer helper
+  const getStandardCurrency = (currencyStr) => {
+    if (!currencyStr) return 'NGN';
+    const c = String(currencyStr).trim().toUpperCase();
+    if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
+    if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
+    return c;
+  };
 
   // --- HELPERS TO EXTRACT COMMENTS ---
   const getFCComment = (historyArray) => {
@@ -79,7 +87,7 @@ const MDDashboard = () => {
     } catch (err) {
       console.error("Dashboard Sync Error:", err);
       toast.error("Executive portal sync failed");
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   };
@@ -110,15 +118,68 @@ const MDDashboard = () => {
     );
   };
 
+  // Calculate total amounts approved/authorized by THIS SPECIFIC MD
+  // excluding any requisitions that were later rejected or declined
+  const computeMDApprovedTotals = () => {
+    const approvedList = filterList(history).filter((req) => {
+      const currentStatus = String(req.status || '').toUpperCase().trim();
+
+      // 1. Exclude any requisition currently in a declined or rejected state
+      const isCurrentlyRejected = 
+        currentStatus.includes('DECLINED') || 
+        currentStatus.includes('REJECTED');
+
+      if (isCurrentlyRejected) {
+        return false;
+      }
+
+      // 2. Verify that this specific MD granted approval in the approval history
+      const approvedByThisUser = req.approvalHistory?.some((entry) => {
+        const isApprovedAction = String(entry.action || '').toUpperCase() === 'APPROVED';
+        const isMDRole = String(entry.actorRole || '').toUpperCase() === 'MD';
+        
+        const matchesUser = 
+          (user.email && (entry.actorEmail === user.email || entry.email === user.email)) ||
+          (user.name && (entry.actorName === user.name || entry.name === user.name)) ||
+          (user._id && (entry.actorId === user._id || entry.userId === user._id));
+
+        return isApprovedAction && isMDRole && (matchesUser || !user.email);
+      });
+
+      // 3. Fallback check for direct fields if available
+      const directUserMatch = 
+        (req.approvedByEmail && req.approvedByEmail === user.email) ||
+        (req.mdEmail && req.mdEmail === user.email) ||
+        (req.approvedBy && req.approvedBy === user.name);
+
+      return approvedByThisUser || directUserMatch;
+    });
+
+    return approvedList.reduce(
+      (acc, req) => {
+        const currency = getStandardCurrency(req.currency);
+        const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+        acc[currency] = (acc[currency] || 0) + cleanedAmount;
+        return acc;
+      },
+      { NGN: 0, USD: 0 }
+    );
+  };
+
+  const totalsByCurrency = computeMDApprovedTotals();
+
   const exportData = () => {
     let dataToExport = [];
     if (activeTab === 'pending') dataToExport = [...inbox, ...backlog];
-    else if (activeTab === 'history') dataToExport = history;
-    else dataToExport = allDepartments;
+    else if (activeTab === 'history') dataToExport = filterList(history);
+    else dataToExport = filterList(allDepartments);
 
     if (dataToExport.length === 0) return toast.error("No data to export");
     const headers = "Date,Department,Staff,Amount,Currency,Vendor,Status\n";
-    const csv = dataToExport.map(r => `${new Date(r.createdAt).toLocaleDateString()},${r.department},${r.requesterName},${r.amount},${r.currency},${r.vendorName || 'N/A'},${r.status}`).join("\n");
+    const csv = dataToExport.map(r => {
+      const cleanedAmount = parseFloat(String(r.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+      return `${new Date(r.createdAt).toLocaleDateString()},${r.department},${r.requesterName},${cleanedAmount},${getStandardCurrency(r.currency)},${r.vendorName || 'N/A'},${r.status}`;
+    }).join("\n");
     const blob = new Blob([headers + csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -135,6 +196,7 @@ const MDDashboard = () => {
         action,
         actorRole: 'MD',
         actorName: user.name || 'MD Office',
+        actorEmail: user.email,
         comment: mdComment || (action === 'Approved' ? 'Final authorization granted.' : ''),
         isOverride
       }, { headers: { Authorization: `Bearer ${token}` } });
@@ -174,12 +236,12 @@ const MDDashboard = () => {
         
         <div className="flex items-center gap-4">
           {!notificationsEnabled && (
-            <button onClick={handleEnableNotifications} className="hidden md:flex bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
-              🔔 ENABLE ALERTS
-            </button>
+             <button onClick={handleEnableNotifications} className="hidden md:flex bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
+               🔔 ENABLE ALERTS
+             </button>
           )}
           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg active:scale-90 transition-all">
-            <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
+             <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
           </button>
         </div>
       </nav>
@@ -202,20 +264,41 @@ const MDDashboard = () => {
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4 mt-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-8 gap-6 mt-4">
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic leading-none">MD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
               <button onClick={() => setActiveTab('pending')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'pending' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>PENDING APPROVAL</button>
-              <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>APPROVAL HISTORY</button>
+              <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>APPROVAL HISTORY ({history.length})</button>
               <button onClick={() => setActiveTab('all')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'all' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>ALL DEPARTMENTS ({allDepartments.length})</button>
             </div>
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
+
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* NAIRA APPROVED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Authorized By You (NGN)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                NGN {totalsByCurrency.NGN.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* DOLLAR APPROVED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Authorized By You (USD)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                USD ${totalsByCurrency.USD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
             <input 
               type="text" 
               placeholder="SEARCH RECORDS..." 
-              className="bg-white border-2 border-gray-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#A67C52] shadow-sm flex-1 md:w-64" 
+              className="bg-white border-2 border-gray-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#A67C52] shadow-sm flex-1 min-w-[180px]" 
               onChange={(e) => setSearchTerm(e.target.value)} 
             />
             <button onClick={exportData} className="bg-black text-white px-6 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all shadow-lg">EXPORT CSV</button>
@@ -229,18 +312,23 @@ const MDDashboard = () => {
                 <h3 className="text-[10px] font-black text-[#A67C52] tracking-[0.3em]">Direct Authorization</h3>
                 <span className="bg-[#A67C52] text-white text-[8px] font-black px-2 py-0.5 rounded-full">{inbox.length}</span>
               </div>
-              {filterList(inbox).map(req => (
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-left-2">
-                  <div>
-                    <p className="text-[8px] font-black text-gray-400 mb-1">{req.department}</p>
-                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                    <p className="text-lg font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+              {filterList(inbox).map(req => {
+                const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+                const standardCurrency = getStandardCurrency(req.currency);
+
+                return (
+                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-left-2">
+                    <div>
+                      <p className="text-[8px] font-black text-gray-400 mb-1">{req.department}</p>
+                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                      <p className="text-lg font-black text-[#A67C52] leading-none mt-1">{standardCurrency} {cleanedAmount.toLocaleString('en-US')}</p>
+                    </div>
+                    <button onClick={() => setSelectedReq(req)} className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
+                      PROCESS
+                    </button>
                   </div>
-                  <button onClick={() => setSelectedReq(req)} className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-                    PROCESS
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {inbox.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic underline decoration-[#A67C52] underline-offset-4">Queue empty</p>}
             </section>
 
@@ -271,25 +359,30 @@ const MDDashboard = () => {
 
         {activeTab === 'all' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filterList(allDepartments).map(req => (
-              <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-                      req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
-                      req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
-                    }`}>{req.status}</span>
-                    <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
-                    <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+            {filterList(allDepartments).map(req => {
+              const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+              const standardCurrency = getStandardCurrency(req.currency);
+
+              return (
+                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                        req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                        req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                      }`}>{req.status}</span>
+                      <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
+                      <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+                    </div>
+                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{standardCurrency} {cleanedAmount.toLocaleString('en-US')}</p>
                   </div>
-                  <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                  <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                  <button onClick={() => setSelectedReq({ ...req, isArchiveView: true })} className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
+                    VIEW
+                  </button>
                 </div>
-                <button onClick={() => setSelectedReq({ ...req, isArchiveView: true })} className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-                  VIEW
-                </button>
-              </div>
-            ))}
+              );
+            })}
             {allDepartments.length === 0 && (
               <div className="col-span-full text-center py-20 text-gray-300 text-[10px] font-black italic">No historic files recorded</div>
             )}
@@ -307,7 +400,7 @@ const MDDashboard = () => {
                     {selectedReq.isArchiveView ? 'ALL REQUEST RECORDS' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
                   </h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
-                    ID: #{selectedReq._id?.slice(-6)} | DEPT: {selectedReq.department}
+                    ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
                   </p>
                 </div>
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
@@ -324,7 +417,9 @@ const MDDashboard = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
-                  <p className="text-xl font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                  <p className="text-xl font-black text-[#A67C52]">
+                    {getStandardCurrency(selectedReq.currency)} {parseFloat(String(selectedReq.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString('en-US')}
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
@@ -336,8 +431,8 @@ const MDDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
-                  <p className={`text-xs font-black ${selectedReq.paymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
-                    {selectedReq.paymentStatus || 'N/A'}
+                  <p className={`text-xs font-black ${selectedReq.paymentStatus === 'Paid' || selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {selectedReq.paymentStatus || selectedReq.clientPaymentStatus || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -353,7 +448,7 @@ const MDDashboard = () => {
                 <div className="bg-gray-900 p-6 rounded-[2rem] border border-[#A67C52]/30 text-white">
                   <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
                   <p className="text-[10px] font-bold tracking-wider leading-relaxed">
-                    {selectedReq.beneficiaryDetails || 'NOT SPECIFIED'}
+                    {selectedReq.beneficiaryDetails || selectedReq.accountDetails || 'NOT SPECIFIED'}
                   </p>
                 </div>
               </div>
@@ -393,19 +488,9 @@ const MDDashboard = () => {
 
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-4 bg-gray-50 overflow-hidden">
                   <p className="text-[9px] font-black text-gray-400 mb-4 ml-2 uppercase tracking-widest">Supporting Documentation Preview</p>
-                  {selectedReq.attachmentUrl ? (
-                    <div className="w-full h-[400px] rounded-[2rem] overflow-hidden bg-white border border-gray-100 relative">
-                      <iframe 
-                        src={`${selectedReq.attachmentUrl}#toolbar=0`} 
-                        className="w-full h-full border-none"
-                        title="Supporting Document"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-40 flex items-center justify-center">
-                      <p className="text-[9px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-6 py-2 rounded-full">No Attachment Available</p>
-                    </div>
-                  )}
+                  <div className="w-full bg-white rounded-[2rem] p-4 min-h-[400px]">
+                    <AttachmentViewer url={selectedReq.attachmentUrl} />
+                  </div>
                 </div>
               </div>
 
