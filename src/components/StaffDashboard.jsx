@@ -46,6 +46,14 @@ function StaffDashboard() {
     return null;
   };
 
+  // Calculate total approved/disbursed amount safely
+  const totalApprovedAmount = myRequests
+    .filter(req => ['Approved', 'Paid', 'Disbursed', 'Finance Approved'].includes(req.status))
+    .reduce((sum, req) => sum + (Number(req.amount) || 0), 0);
+
+  // Get active currency code or fallback to NGN
+  const userCurrency = myRequests.find(req => req.currency)?.currency || 'NGN';
+
   useEffect(() => {
     fetchMyRequests();
   }, [API_BASE_URL, user.email, token]);
@@ -60,8 +68,8 @@ function StaffDashboard() {
     if (status === 'Declined' || status === 'Rejected') {
       return 'bg-red-50 text-red-500 border border-red-100';
     }
-    if (status === 'Paid') {
-      return 'bg-green-50 text-green-600 border border-green-100';
+    if (status === 'Disbursed' || status === 'Paid') {
+      return 'bg-emerald-50 text-emerald-600 border border-emerald-200';
     }
 
     const stage = String(currentStage).toUpperCase();
@@ -82,7 +90,7 @@ function StaffDashboard() {
 
   const formatStatusText = (status, currentStage) => {
     if (status === 'Declined' || status === 'Rejected') return 'DECLINED';
-    if (status === 'Paid') return 'PAID';
+    if (status === 'Disbursed' || status === 'Paid') return 'DISBURSED';
 
     const stage = String(currentStage).toUpperCase();
     if (stage === 'ACCOUNTS' || stage === 'ACCOUNTANT') {
@@ -92,7 +100,7 @@ function StaffDashboard() {
       return `WITH ${stage}`;
     }
     
-    return status === 'Approved' ? 'PROCESSING' : status;
+    return status === 'Approved' ? 'PAYMENT PENDING' : status;
   };
 
   if (loading) return (
@@ -104,6 +112,7 @@ function StaffDashboard() {
 
   return (
     <div className="bg-gray-50 min-h-screen uppercase">
+      {/* NAVBAR */}
       <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-[#A67C52] rounded-xl flex items-center justify-center font-black text-xl italic text-black">B</div>
@@ -127,6 +136,7 @@ function StaffDashboard() {
         </div>
       </nav>
 
+      {/* PROFILE DROPDOWN */}
       {showProfile && (
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="text-center mb-6">
@@ -138,18 +148,20 @@ function StaffDashboard() {
           </div>
           <div className="space-y-2 pt-4 border-t border-gray-50">
              <Link to="/profile" className="block w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-gray-50 hover:bg-[#A67C52] hover:text-white transition-all uppercase tracking-widest">
-               View Profile
+                View Profile
              </Link>
              <button onClick={handleLogout} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
-               Sign Out
+                Sign Out
              </button>
           </div>
         </div>
       )}
 
+      {/* MAIN CONTENT AREA */}
       <div className="p-4 md:p-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           
+          {/* CREATE ACTION BANNER */}
           <div className="md:col-span-1 bg-[#A67C52] rounded-[3rem] p-10 text-white shadow-2xl flex flex-col justify-between h-fit md:h-[450px] relative overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
             <div className="relative z-10">
@@ -166,17 +178,34 @@ function StaffDashboard() {
             </Link>
           </div>
 
+          {/* TABLE CONTAINER */}
           <div className="md:col-span-3 bg-white rounded-[3rem] p-8 md:p-10 shadow-sm border border-gray-100">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            
+            {/* HEADER AREA WITH STAT CARDS */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-gray-50 pb-8">
               <div>
                 <h2 className="text-2xl font-black uppercase text-gray-900 tracking-tighter italic">Submission <span className="text-[#A67C52]">History</span></h2>
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
               </div>
-              <div className="text-[10px] font-black text-[#A67C52] uppercase tracking-[0.2em] bg-[#FBF9F6] border border-[#A67C52]/10 px-6 py-2 rounded-full shadow-inner">
-                Total Files: {myRequests.length}
+
+              {/* STAT CARDS CONTAINER */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {/* TOTAL APPROVED / DISBURSED CARD */}
+                <div className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl shadow-md border border-black">
+                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Total Approved</p>
+                  <p className="text-sm font-black tracking-tight mt-0.5">
+                    {userCurrency} {totalApprovedAmount.toLocaleString()}
+                  </p>
+                </div>
+
+                {/* TOTAL FILES BADGE */}
+                <div className="flex-1 md:flex-none text-center text-[10px] font-black text-[#A67C52] uppercase tracking-[0.1em] bg-[#FBF9F6] border border-[#A67C52]/10 px-5 py-4 rounded-2xl shadow-inner">
+                  Total Files: {myRequests.length}
+                </div>
               </div>
             </div>
             
+            {/* REQUISITIONS TABLE */}
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
