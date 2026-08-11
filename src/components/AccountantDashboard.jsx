@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -21,28 +21,29 @@ const AccountantDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  // --- HELPER: GET EXACT MD APPROVED AMOUNT ---
+  const getMDApprovedAmount = (req) => {
+    if (!req) return 0;
+    // 1. Explicit approvedAmount field on model
+    if (req.approvedAmount !== undefined && req.approvedAmount !== null) {
+      return Number(req.approvedAmount);
+    }
+    // 2. Check approvalHistory for an MD entry containing an amount override
+    if (Array.isArray(req.approvalHistory)) {
+      const mdEntry = [...req.approvalHistory].reverse().find(h => h.actorRole === 'MD');
+      if (mdEntry && mdEntry.approvedAmount !== undefined) {
+        return Number(mdEntry.approvedAmount);
+      }
+    }
+    // 3. Fallback to base requested amount
+    return Number(req.amount || 0);
+  };
+
   // --- HELPER: GET MD DISBURSEMENT INSTRUCTIONS ---
   const getMDInstructions = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return "Standard disbursement approved.";
     const mdEntry = [...historyArray].reverse().find(h => h.actorRole === 'MD');
     return mdEntry ? mdEntry.comment : "Standard disbursement approved.";
-  };
-
-  // --- HELPER: CALCULATE TOTAL DISBURSED BY CURRENCY ---
-  const getTotalDisbursed = () => {
-    if (!Array.isArray(history) || history.length === 0) return { USD: 0, NGN: 0 };
-    return history.reduce((acc, req) => {
-      const rawCurr = (req.currency || 'USD').toUpperCase().trim();
-      const amt = Number(req.amount) || 0;
-
-      // Normalize common currency keys
-      let currKey = rawCurr;
-      if (rawCurr === '$' || rawCurr === 'USD') currKey = 'USD';
-      if (rawCurr === '₦' || rawCurr === 'NGN' || rawCurr === 'NAIRA') currKey = 'NGN';
-
-      acc[currKey] = (acc[currKey] || 0) + amt;
-      return acc;
-    }, { USD: 0, NGN: 0 });
   };
 
   const fetchData = async () => {
@@ -77,7 +78,7 @@ const AccountantDashboard = () => {
     } catch (err) {
       console.error("Treasury Sync Error:", err);
       toast.error("Failed to sync treasury data.");
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
@@ -97,6 +98,20 @@ const AccountantDashboard = () => {
     );
   };
 
+  // --- SUMMARY CALCULATIONS ---
+  const totals = useMemo(() => {
+    // Total Pending MD Authorized amount waiting in Accountants queue
+    const totalMDApprovedPending = requisitions.reduce((sum, req) => sum + getMDApprovedAmount(req), 0);
+    
+    // Total Amount disbursed by Accounts (History items marked Paid/Disbursed)
+    const totalDisbursedByAccounts = history.reduce((sum, req) => sum + getMDApprovedAmount(req), 0);
+
+    return {
+      totalMDApprovedPending,
+      totalDisbursedByAccounts
+    };
+  }, [requisitions, history]);
+
   const exportToCSV = () => {
     let dataToExport = [];
     if (view === 'queue') dataToExport = requisitions;
@@ -106,10 +121,8 @@ const AccountantDashboard = () => {
     const filteredData = filterList(dataToExport);
     if (filteredData.length === 0) return toast.error("No data to export");
     
-    // Updated Headers
-    const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Amount,Currency,Status,Narrative\n";
+    const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Original Amount,MD Approved Amount,Currency,Status,Narrative\n";
     
-    // Updated Row Mapping with CSV cleaning
     const rows = filteredData.map(r => {
       const clean = (val) => (val ? String(val).replace(/,/g, ' ') : 'N/A');
       
@@ -125,6 +138,7 @@ const AccountantDashboard = () => {
         clean(r.beneficiaryDetails),
         clean(r.modeOfPayment),
         r.amount,
+        getMDApprovedAmount(r),
         r.currency,
         r.status,
         clean(r.requestNarrative || r.description)
@@ -165,8 +179,6 @@ const AccountantDashboard = () => {
       <p className="text-[10px] font-black text-gray-400 tracking-[0.3em] uppercase">Syncing Accounts...</p>
     </div>
   );
-
-  const totals = getTotalDisbursed();
 
   return (
     <div className="min-h-screen bg-[#F4F7F9] uppercase">
@@ -226,39 +238,26 @@ const AccountantDashboard = () => {
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* KPI SUMMARY CARDS (DOLLAR & NAIRA) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 mb-8">
-          {/* NAIRA DISBURSED */}
-          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+        {/* SUMMARY METRICS CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 mt-2">
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex justify-between items-center border-l-8 border-l-[#A67C52]">
             <div>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Disbursed (NGN)</p>
-              <p className="text-2xl font-black text-gray-900">₦ {(totals.NGN || 0).toLocaleString()}</p>
+              <p className="text-[9px] font-black text-gray-400 tracking-widest uppercase mb-1">Total Authorized by MD (Awaiting Disbursement)</p>
+              <h3 className="text-2xl font-black text-gray-900">
+                {requisitions[0]?.currency || 'NGN'} {totals.totalMDApprovedPending.toLocaleString()}
+              </h3>
             </div>
-            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-lg">
-              🇳🇬
-            </div>
+            <span className="text-2xl">⏳</span>
           </div>
 
-          {/* DOLLAR DISBURSED */}
-          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex justify-between items-center border-l-8 border-l-green-500">
             <div>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Disbursed (USD)</p>
-              <p className="text-2xl font-black text-gray-900">$ {(totals.USD || 0).toLocaleString()}</p>
+              <p className="text-[9px] font-black text-gray-400 tracking-widest uppercase mb-1">Total Disbursed by Accounts</p>
+              <h3 className="text-2xl font-black text-gray-900">
+                {history[0]?.currency || 'NGN'} {totals.totalDisbursedByAccounts.toLocaleString()}
+              </h3>
             </div>
-            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-lg">
-              💵
-            </div>
-          </div>
-
-          {/* TOTAL DISBURSED TRANSACTIONS */}
-          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Paid Requests</p>
-              <p className="text-2xl font-black text-gray-900">{history.length}</p>
-            </div>
-            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 font-black text-lg">
-              📜
-            </div>
+            <span className="text-2xl">✅</span>
           </div>
         </div>
 
@@ -294,36 +293,50 @@ const AccountantDashboard = () => {
         <div className="space-y-6">
           {view === 'queue' && (
             <>
-              {filterList(requisitions).map(req => (
-                <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
-                  <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
-                        <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
-                      </div>
-                      <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
-                      <div className="flex gap-6 mt-2">
-                         <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
-                         <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
-                      </div>
-                    </div>
+              {filterList(requisitions).map(req => {
+                const approvedAmt = getMDApprovedAmount(req);
+                const isModified = approvedAmt !== req.amount;
 
-                    <div className="flex items-center gap-8">
-                       <div className="text-right">
-                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Amount</p>
-                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount?.toLocaleString()}</p>
-                       </div>
-                       <button 
-                        onClick={() => setSelectedReq(req)} 
-                        className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
-                       >
-                         PROCESS PAYMENT
-                       </button>
+                return (
+                  <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all">
+                    <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-4">
+                          <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR DISBURSEMENT</span>
+                          <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
+                        <div className="flex gap-6 mt-2">
+                           <p className="text-[10px] font-bold text-gray-500 underline underline-offset-4 decoration-[#A67C52]">{req.requesterName}</p>
+                           <p className="text-[10px] font-bold text-gray-400">{req.department}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-8">
+                         <div className="text-right">
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                              {isModified ? 'MD Approved Amount' : 'Amount'}
+                            </p>
+                            <p className="text-2xl font-black text-gray-900">
+                              {req.currency} {approvedAmt.toLocaleString()}
+                            </p>
+                            {isModified && (
+                              <p className="text-[8px] font-bold text-amber-600 line-through">
+                                Requested: {req.currency} {req.amount?.toLocaleString()}
+                              </p>
+                            )}
+                         </div>
+                         <button 
+                          onClick={() => setSelectedReq(req)} 
+                          className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg transition-all active:scale-95"
+                         >
+                           PROCESS PAYMENT
+                         </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {filterList(requisitions).length === 0 && (
                 <div className="py-32 text-center bg-white border-4 border-dashed border-gray-100 rounded-[3rem]">
                   <p className="text-gray-300 font-black uppercase tracking-[0.4em] text-xs underline decoration-[#A67C52] decoration-2 underline-offset-8">No Pending Disbursements</p>
@@ -338,28 +351,32 @@ const AccountantDashboard = () => {
 
           {view === 'all' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filterList(allDepartments).map(req => (
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-                        req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
-                        req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
-                      }`}>{req.status}</span>
-                      <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
-                      <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+              {filterList(allDepartments).map(req => {
+                const approvedAmt = getMDApprovedAmount(req);
+
+                return (
+                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                          req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
+                          req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                        }`}>{req.status}</span>
+                        <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage || 'N/A'}</span>
+                        <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
+                      </div>
+                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                      <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {approvedAmt?.toLocaleString()}</p>
                     </div>
-                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                    <button 
+                      onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
+                      className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
+                    >
+                      VIEW
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
-                    className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all"
-                  >
-                    VIEW
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {filterList(allDepartments).length === 0 && (
                 <div className="col-span-full py-20 text-center bg-white border-2 border-dashed border-gray-100 rounded-[2.5rem] text-gray-300 text-[10px] font-black italic">
                   No cross-department system records available.
@@ -427,8 +444,8 @@ const AccountantDashboard = () => {
                   <p className="text-[11px] font-black text-red-500">{selectedReq.dueDate ? new Date(selectedReq.dueDate).toLocaleDateString() : 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
-                  <p className="text-[11px] font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                  <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">MD Approved Value</p>
+                  <p className="text-[11px] font-black text-[#A67C52]">{selectedReq.currency} {getMDApprovedAmount(selectedReq)?.toLocaleString()}</p>
                 </div>
               </div>
 
