@@ -452,5 +452,4 @@ const AccountantDashboard = () => {
   );
 };
 
-export DataExportTemplate from './AccountantDashboard'; // or export default AccountantDashboard;
 export default AccountantDashboard;
