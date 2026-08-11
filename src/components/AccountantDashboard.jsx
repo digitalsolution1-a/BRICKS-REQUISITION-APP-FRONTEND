@@ -60,7 +60,7 @@ const AccountantDashboard = () => {
     } catch (err) {
       console.error("Treasury Sync Error:", err);
       toast.error("Failed to sync treasury data.");
-    } font-bold {
+    } finally {
       setLoading(false);
     }
   };
