@@ -28,6 +28,17 @@ const AccountantDashboard = () => {
     return mdEntry ? mdEntry.comment : "Standard disbursement approved.";
   };
 
+  // --- HELPER: CALCULATE TOTAL DISBURSED BY CURRENCY ---
+  const getTotalDisbursed = () => {
+    if (!Array.isArray(history) || history.length === 0) return { USD: 0 };
+    return history.reduce((acc, req) => {
+      const curr = req.currency || 'USD';
+      const amt = Number(req.amount) || 0;
+      acc[curr] = (acc[curr] || 0) + amt;
+      return acc;
+    }, {});
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -60,7 +71,7 @@ const AccountantDashboard = () => {
     } catch (err) {
       console.error("Treasury Sync Error:", err);
       toast.error("Failed to sync treasury data.");
-    } finally {
+    } font-black {
       setLoading(false);
     }
   };
@@ -149,6 +160,8 @@ const AccountantDashboard = () => {
     </div>
   );
 
+  const totals = getTotalDisbursed();
+
   return (
     <div className="min-h-screen bg-[#F4F7F9] uppercase">
       {/* NAVBAR */}
@@ -207,7 +220,26 @@ const AccountantDashboard = () => {
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
+        {/* TOP SUMMARY STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 mb-6">
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Amount Disbursed</p>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(totals).map(([currency, total]) => (
+                  <p key={currency} className="text-2xl font-black text-gray-900">
+                    {currency} {total.toLocaleString()}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 font-black text-xl">
+              💳
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
               {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All'}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Dashboard' : 'History'}</span>
@@ -257,7 +289,7 @@ const AccountantDashboard = () => {
                     <div className="flex items-center gap-8">
                        <div className="text-right">
                           <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Amount</p>
-                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount.toLocaleString()}</p>
+                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount?.toLocaleString()}</p>
                        </div>
                        <button 
                         onClick={() => setSelectedReq(req)} 
@@ -342,7 +374,7 @@ const AccountantDashboard = () => {
                   <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">DA Ref Number</p>
                   <p className="text-xs font-bold tracking-widest">{selectedReq.daRefNo || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-990 p-5 rounded-2xl bg-gray-900 border border-[#A67C52]/50 text-white">
+                <div className="bg-gray-900 p-5 rounded-2xl border border-[#A67C52]/50 text-white">
                   <p className="text-[8px] font-black text-[#A67C52] uppercase mb-1">Client Payment Status</p>
                   <p className={`text-xs font-bold tracking-widest ${selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-400' : 'text-orange-400'}`}>
                     {selectedReq.clientPaymentStatus || 'PENDING'}
