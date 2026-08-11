@@ -469,7 +469,7 @@ const FCDashboard = () => {
                 />
                 <div className="flex flex-col md:flex-row gap-4">
                   <button onClick={() => handleAction(selectedReq._id, 'Approved')} className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
-                    {activeTab === 'all' ? 'LOG VIEW COMMENT' : 'FORWARD TO MD'}
+                    {activeTab === 'all' ? 'LOG VIEW COMMENT' : 'APPROVE'}
                   </button>
                   {activeTab !== 'all' && (
                     <button onClick={() => handleAction(selectedReq._id, 'Declined')} className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95">
