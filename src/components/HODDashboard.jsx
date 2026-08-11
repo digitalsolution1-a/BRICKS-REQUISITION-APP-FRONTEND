@@ -101,29 +101,39 @@ const HODDashboard = () => {
   };
 
   // Calculate total amounts explicitly approved by THIS SPECIFIC logged-in HOD
+  // and exclude any requisitions that were later rejected or declined downstream
   const computeHODApprovedTotals = () => {
     const approvedList = filterList(history).filter((req) => {
-      // 1. Check inside approvalHistory for an entry approved strictly by this logged-in user
+      const currentStatus = String(req.status || '').toUpperCase().trim();
+
+      // 1. Exclude any requisition currently in a declined or rejected state
+      const isCurrentlyRejected = 
+        currentStatus.includes('DECLINED') || 
+        currentStatus.includes('REJECTED');
+
+      if (isCurrentlyRejected) {
+        return false;
+      }
+
+      // 2. Verify that this specific user granted approval in the approval history
       const approvedByThisUser = req.approvalHistory?.some((entry) => {
-        const isApproved = String(entry.action || '').toUpperCase() === 'APPROVED';
+        const isApprovedAction = String(entry.action || '').toUpperCase() === 'APPROVED';
         
         const matchesUser = 
           (user.email && (entry.actorEmail === user.email || entry.email === user.email)) ||
           (user.name && (entry.actorName === user.name || entry.name === user.name)) ||
           (user._id && (entry.actorId === user._id || entry.userId === user._id));
 
-        return isApproved && matchesUser;
+        return isApprovedAction && matchesUser;
       });
 
-      // 2. Direct property fallbacks strictly matching this user's email/name
+      // 3. Fallback checks for direct properties matching this specific user
       const directUserMatch = 
         (req.approvedByEmail && req.approvedByEmail === user.email) ||
         (req.hodEmail && req.hodEmail === user.email) ||
         (req.approvedBy && req.approvedBy === user.name);
 
-      const statusNotDeclined = !['DECLINED', 'REJECTED'].includes(String(req.status || '').toUpperCase().trim());
-
-      return approvedByThisUser || (directUserMatch && statusNotDeclined);
+      return approvedByThisUser || directUserMatch;
     });
 
     return approvedList.reduce(
