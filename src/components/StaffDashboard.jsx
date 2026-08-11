@@ -7,6 +7,7 @@ import { generateRequisitionPDF } from '../utils/pdfGenerator';
 function StaffDashboard() {
   const [myRequests, setMyRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // NATIVE PWA & UI STATES
   const [showProfile, setShowProfile] = useState(false);
@@ -37,6 +38,26 @@ function StaffDashboard() {
     }
   };
 
+  // Filter requests based on search term (Vendor, Ref ID, Status, Stage, Amount)
+  const filteredRequests = myRequests.filter((req) => {
+    if (!searchTerm.trim()) return true;
+
+    const query = searchTerm.toLowerCase().trim();
+    const vendor = String(req.vendorName || '').toLowerCase();
+    const ref = String(req._id || '').toLowerCase();
+    const status = String(req.status || '').toLowerCase();
+    const stage = String(req.currentStage || '').toLowerCase();
+    const amount = String(req.amount || '').toLowerCase();
+
+    return (
+      vendor.includes(query) ||
+      ref.includes(query) ||
+      status.includes(query) ||
+      stage.includes(query) ||
+      amount.includes(query)
+    );
+  });
+
   // Helper to extract the last decline comment from approval history
   const getDeclineComment = (req) => {
     const s = String(req.status || '').toUpperCase();
@@ -47,14 +68,13 @@ function StaffDashboard() {
     return null;
   };
 
-  // Safe Total Disbursed / Approved calculation (Handles case sensitivity + removes formatting commas)
+  // Safe Total Disbursed / Approved calculation across all user records
   const totalApprovedAmount = myRequests
     .filter(req => {
       const status = String(req.status || '').toUpperCase().trim();
       return ['APPROVED', 'PAID', 'DISBURSED', 'FINANCE APPROVED', 'MD APPROVED'].includes(status);
     })
     .reduce((sum, req) => {
-      // Remove commas or non-numeric characters before converting to number
       const cleanedAmount = String(req.amount || '0').replace(/[^0-9.]/g, '');
       return sum + (parseFloat(cleanedAmount) || 0);
     }, 0);
@@ -192,7 +212,7 @@ function StaffDashboard() {
           <div className="md:col-span-3 bg-white rounded-[3rem] p-8 md:p-10 shadow-sm border border-gray-100">
             
             {/* HEADER AREA WITH STAT CARDS */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-gray-50 pb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6 border-b border-gray-50 pb-8">
               <div>
                 <h2 className="text-2xl font-black uppercase text-gray-900 tracking-tighter italic">Submission <span className="text-[#A67C52]">History</span></h2>
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
@@ -210,9 +230,36 @@ function StaffDashboard() {
 
                 {/* TOTAL FILES BADGE */}
                 <div className="flex-1 md:flex-none text-center text-[10px] font-black text-[#A67C52] uppercase tracking-[0.1em] bg-[#FBF9F6] border border-[#A67C52]/10 px-5 py-4 rounded-2xl shadow-inner">
-                  Total Files: {myRequests.length}
+                  Total Files: {filteredRequests.length}
                 </div>
               </div>
+            </div>
+
+            {/* SEARCH BAR */}
+            <div className="relative mb-8">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search requests by vendor, ref code, status, or amount..."
+                className="w-full bg-[#FBF9F6] border border-gray-200 rounded-2xl px-5 py-4 pl-12 text-xs font-black text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#A67C52] focus:ring-1 focus:ring-[#A67C52] transition-all uppercase tracking-wide"
+              />
+              <svg 
+                className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')} 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-400 hover:text-black bg-gray-200 hover:bg-gray-300 rounded-full w-6 h-6 flex items-center justify-center transition-all"
+                >
+                  ✕
+                </button>
+              )}
             </div>
             
             {/* REQUISITIONS TABLE */}
@@ -228,14 +275,16 @@ function StaffDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {myRequests.length === 0 ? (
+                  {filteredRequests.length === 0 ? (
                     <tr>
                       <td colSpan="5" className="py-24 text-center">
-                        <p className="text-xs font-black text-gray-300 uppercase tracking-[0.4em] italic underline decoration-[#A67C52] decoration-2 underline-offset-8">No records available</p>
+                        <p className="text-xs font-black text-gray-300 uppercase tracking-[0.4em] italic underline decoration-[#A67C52] decoration-2 underline-offset-8">
+                          {searchTerm ? "No matching records found" : "No records available"}
+                        </p>
                       </td>
                     </tr>
                   ) : (
-                    myRequests.map((req) => {
+                    filteredRequests.map((req) => {
                       const comment = getDeclineComment(req);
                       const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
 
