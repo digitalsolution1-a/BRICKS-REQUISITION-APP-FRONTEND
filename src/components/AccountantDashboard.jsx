@@ -104,10 +104,10 @@ const AccountantDashboard = () => {
     const filteredData = filterList(dataToExport);
     if (filteredData.length === 0) return toast.error("No data to export");
     
-    // Headers
+    // Updated Headers
     const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Amount,Currency,Status,Narrative\n";
     
-    // Row Mapping with CSV cleaning
+    // Updated Row Mapping with CSV cleaning and approved values
     const rows = filteredData.map(r => {
       const clean = (val) => (val ? String(val).replace(/,/g, ' ').replace(/\n/g, ' ') : 'N/A');
       const approved = getApprovedAmounts(r);
