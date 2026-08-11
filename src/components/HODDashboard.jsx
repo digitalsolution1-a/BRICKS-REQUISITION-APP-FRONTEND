@@ -100,17 +100,30 @@ const HODDashboard = () => {
     );
   };
 
-  // Calculate total amounts explicitly approved by this HOD
+  // Calculate total amounts explicitly approved by THIS SPECIFIC logged-in HOD
   const computeHODApprovedTotals = () => {
     const approvedList = filterList(history).filter((req) => {
-      const status = String(req.status || '').toUpperCase().trim();
-      const hasHodApproval = req.approvalHistory?.some(
-        (entry) =>
-          (entry.actorRole === 'HOD' || entry.actorName === user.name) &&
-          String(entry.action).toUpperCase() === 'APPROVED'
-      );
+      // 1. Check inside approvalHistory for an entry approved strictly by this logged-in user
+      const approvedByThisUser = req.approvalHistory?.some((entry) => {
+        const isApproved = String(entry.action || '').toUpperCase() === 'APPROVED';
+        
+        const matchesUser = 
+          (user.email && (entry.actorEmail === user.email || entry.email === user.email)) ||
+          (user.name && (entry.actorName === user.name || entry.name === user.name)) ||
+          (user._id && (entry.actorId === user._id || entry.userId === user._id));
 
-      return hasHodApproval || (!['DECLINED', 'REJECTED'].includes(status));
+        return isApproved && matchesUser;
+      });
+
+      // 2. Direct property fallbacks strictly matching this user's email/name
+      const directUserMatch = 
+        (req.approvedByEmail && req.approvedByEmail === user.email) ||
+        (req.hodEmail && req.hodEmail === user.email) ||
+        (req.approvedBy && req.approvedBy === user.name);
+
+      const statusNotDeclined = !['DECLINED', 'REJECTED'].includes(String(req.status || '').toUpperCase().trim());
+
+      return approvedByThisUser || (directUserMatch && statusNotDeclined);
     });
 
     return approvedList.reduce(
@@ -154,6 +167,7 @@ const HODDashboard = () => {
         action,
         actorRole: 'HOD',
         actorName: user.name,
+        actorEmail: user.email,
         comment: hodComment || (action === 'Approved' ? 'Departmental approval granted.' : '')
       }, {
         headers: { Authorization: `Bearer ${token}` }
