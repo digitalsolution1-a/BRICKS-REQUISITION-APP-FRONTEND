@@ -46,6 +46,16 @@ function StaffDashboard() {
     return null;
   };
 
+  // ==========================================
+  // FRONTEND TOTAL APPROVED CALCULATION
+  // ==========================================
+  const totalApprovedAmount = myRequests
+    .filter(req => ['Approved', 'Paid', 'Finance Approved'].includes(req.status))
+    .reduce((sum, req) => sum + (Number(req.amount) || 0), 0);
+
+  // Get currency symbol/code from first request or default to NGN/USD
+  const userCurrency = myRequests.find(req => req.currency)?.currency || 'NGN';
+
   useEffect(() => {
     fetchMyRequests();
   }, [API_BASE_URL, user.email, token]);
@@ -138,10 +148,10 @@ function StaffDashboard() {
           </div>
           <div className="space-y-2 pt-4 border-t border-gray-50">
              <Link to="/profile" className="block w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-gray-50 hover:bg-[#A67C52] hover:text-white transition-all uppercase tracking-widest">
-               View Profile
+                View Profile
              </Link>
              <button onClick={handleLogout} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
-               Sign Out
+                Sign Out
              </button>
           </div>
         </div>
@@ -167,13 +177,28 @@ function StaffDashboard() {
           </div>
 
           <div className="md:col-span-3 bg-white rounded-[3rem] p-8 md:p-10 shadow-sm border border-gray-100">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            
+            {/* HEADER METRICS & TITLE AREA */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-gray-50 pb-8">
               <div>
                 <h2 className="text-2xl font-black uppercase text-gray-900 tracking-tighter italic">Submission <span className="text-[#A67C52]">History</span></h2>
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
               </div>
-              <div className="text-[10px] font-black text-[#A67C52] uppercase tracking-[0.2em] bg-[#FBF9F6] border border-[#A67C52]/10 px-6 py-2 rounded-full shadow-inner">
-                Total Files: {myRequests.length}
+
+              {/* STAT CARDS: TOTAL APPROVED & TOTAL FILES */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {/* NEW CARD: TOTAL APPROVED */}
+                <div className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl shadow-md border border-black">
+                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Total Approved</p>
+                  <p className="text-sm font-black tracking-tight mt-0.5">
+                    {userCurrency} {totalApprovedAmount.toLocaleString()}
+                  </p>
+                </div>
+
+                {/* TOTAL FILES BADGE */}
+                <div className="flex-1 md:flex-none text-center text-[10px] font-black text-[#A67C52] uppercase tracking-[0.1em] bg-[#FBF9F6] border border-[#A67C52]/10 px-5 py-4 rounded-2xl shadow-inner">
+                  Files: {myRequests.length}
+                </div>
               </div>
             </div>
             
