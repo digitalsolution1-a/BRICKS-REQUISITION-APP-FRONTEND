@@ -38,7 +38,30 @@ function StaffDashboard() {
     }
   };
 
-  // Filter requests based on search term (Vendor, Ref ID, Status, Stage, Amount)
+  // Helper to standardize currency input strings
+  const getStandardCurrency = (currencyStr) => {
+    if (!currencyStr) return 'NGN';
+    const c = String(currencyStr).trim().toUpperCase();
+    if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
+    if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
+    return c;
+  };
+
+  // Calculate totals separated by currency (NGN, USD, etc.)
+  const totalsByCurrency = myRequests
+    .filter(req => {
+      const status = String(req.status || '').toUpperCase().trim();
+      return ['APPROVED', 'PAID', 'DISBURSED', 'FINANCE APPROVED', 'MD APPROVED'].includes(status);
+    })
+    .reduce((acc, req) => {
+      const currency = getStandardCurrency(req.currency);
+      const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+      
+      acc[currency] = (acc[currency] || 0) + cleanedAmount;
+      return acc;
+    }, {});
+
+  // Filter requests based on search term
   const filteredRequests = myRequests.filter((req) => {
     if (!searchTerm.trim()) return true;
 
@@ -48,17 +71,19 @@ function StaffDashboard() {
     const status = String(req.status || '').toLowerCase();
     const stage = String(req.currentStage || '').toLowerCase();
     const amount = String(req.amount || '').toLowerCase();
+    const currency = String(req.currency || '').toLowerCase();
 
     return (
       vendor.includes(query) ||
       ref.includes(query) ||
       status.includes(query) ||
       stage.includes(query) ||
-      amount.includes(query)
+      amount.includes(query) ||
+      currency.includes(query)
     );
   });
 
-  // Helper to extract the last decline comment from approval history
+  // Extract last decline comment from approval history
   const getDeclineComment = (req) => {
     const s = String(req.status || '').toUpperCase();
     if ((s === 'DECLINED' || s === 'REJECTED') && req.approvalHistory?.length > 0) {
@@ -67,20 +92,6 @@ function StaffDashboard() {
     }
     return null;
   };
-
-  // Safe Total Disbursed / Approved calculation across all user records
-  const totalApprovedAmount = myRequests
-    .filter(req => {
-      const status = String(req.status || '').toUpperCase().trim();
-      return ['APPROVED', 'PAID', 'DISBURSED', 'FINANCE APPROVED', 'MD APPROVED'].includes(status);
-    })
-    .reduce((sum, req) => {
-      const cleanedAmount = String(req.amount || '0').replace(/[^0-9.]/g, '');
-      return sum + (parseFloat(cleanedAmount) || 0);
-    }, 0);
-
-  // Get active currency code or fallback to NGN
-  const userCurrency = myRequests.find(req => req.currency)?.currency || 'NGN';
 
   useEffect(() => {
     fetchMyRequests();
@@ -220,12 +231,21 @@ function StaffDashboard() {
 
               {/* STAT CARDS CONTAINER */}
               <div className="flex items-center gap-3 w-full md:w-auto">
-                {/* TOTAL DISBURSED CARD */}
-                <div className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl shadow-md border border-black">
+                {/* MULTI-CURRENCY TOTAL DISBURSED CARD */}
+                <div className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl shadow-md border border-black min-w-[170px]">
                   <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Total Disbursed</p>
-                  <p className="text-sm font-black tracking-tight mt-0.5">
-                    {userCurrency} {totalApprovedAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                  </p>
+                  <div className="mt-1 space-y-1">
+                    {Object.keys(totalsByCurrency).length === 0 ? (
+                      <p className="text-sm font-black tracking-tight">NGN 0</p>
+                    ) : (
+                      Object.entries(totalsByCurrency).map(([curr, total]) => (
+                        <p key={curr} className="text-xs font-black tracking-tight flex items-center justify-between gap-4">
+                          <span className="text-[#A67C52]">{curr}</span>
+                          <span>{total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                        </p>
+                      ))
+                    )}
+                  </div>
                 </div>
 
                 {/* TOTAL FILES BADGE */}
@@ -241,7 +261,7 @@ function StaffDashboard() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search requests by vendor, ref code, status, or amount..."
+                placeholder="Search requests by vendor, ref code, status, currency, or amount..."
                 className="w-full bg-[#FBF9F6] border border-gray-200 rounded-2xl px-5 py-4 pl-12 text-xs font-black text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#A67C52] focus:ring-1 focus:ring-[#A67C52] transition-all uppercase tracking-wide"
               />
               <svg 
@@ -287,6 +307,7 @@ function StaffDashboard() {
                     filteredRequests.map((req) => {
                       const comment = getDeclineComment(req);
                       const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+                      const standardCurrency = getStandardCurrency(req.currency);
 
                       return (
                         <tr key={req._id} className="text-sm font-bold text-gray-600 hover:bg-[#FBF9F6] transition-all group">
@@ -304,7 +325,7 @@ function StaffDashboard() {
                             )}
                           </td>
                           <td className="py-6 whitespace-nowrap font-black text-[#A67C52] text-xs">
-                            {req.currency || 'NGN'} {cleanedAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            {standardCurrency} {cleanedAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-6">
                             <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status, req.currentStage)}`}>
