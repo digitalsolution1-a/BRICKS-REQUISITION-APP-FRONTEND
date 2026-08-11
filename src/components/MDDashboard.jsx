@@ -17,7 +17,9 @@ const MDDashboard = () => {
   
   const [showProfile, setShowProfile] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
-    Notification.permission === 'granted'
+    typeof window !== 'undefined' && 'Notification' in window
+      ? Notification.permission === 'granted'
+      : false
   );
 
   const APPROVAL_TEMPLATES = [
@@ -77,7 +79,7 @@ const MDDashboard = () => {
     } catch (err) {
       console.error("Dashboard Sync Error:", err);
       toast.error("Executive portal sync failed");
-    } finally {
+    } fontFinally: {
       setLoading(false);
     }
   };
@@ -104,7 +106,7 @@ const MDDashboard = () => {
       req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req._id.includes(searchTerm)
+      req._id?.includes(searchTerm)
     );
   };
 
@@ -172,12 +174,12 @@ const MDDashboard = () => {
         
         <div className="flex items-center gap-4">
           {!notificationsEnabled && (
-             <button onClick={handleEnableNotifications} className="hidden md:flex bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
-               🔔 ENABLE ALERTS
-             </button>
+            <button onClick={handleEnableNotifications} className="hidden md:flex bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
+              🔔 ENABLE ALERTS
+            </button>
           )}
           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg active:scale-90 transition-all">
-             <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
+            <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
           </button>
         </div>
       </nav>
@@ -305,7 +307,7 @@ const MDDashboard = () => {
                     {selectedReq.isArchiveView ? 'ALL REQUEST RECORDS' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
                   </h3>
                   <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
-                    ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
+                    ID: #{selectedReq._id?.slice(-6)} | DEPT: {selectedReq.department}
                   </p>
                 </div>
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
