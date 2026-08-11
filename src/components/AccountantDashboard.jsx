@@ -72,11 +72,10 @@ const AccountantDashboard = () => {
   const filterList = (list) => {
     const data = Array.isArray(list) ? list : [];
     if (!searchTerm) return data;
-    const lowerSearch = searchTerm.toLowerCase();
     return data.filter(req => 
-      req.vendorName?.toLowerCase().includes(lowerSearch) ||
-      req.requesterName?.toLowerCase().includes(lowerSearch) ||
-      req.department?.toLowerCase().includes(lowerSearch) ||
+      req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req._id?.includes(searchTerm)
     );
   };
@@ -90,17 +89,17 @@ const AccountantDashboard = () => {
     const filteredData = filterList(dataToExport);
     if (filteredData.length === 0) return toast.error("No data to export");
     
-    // Headers
+    // Updated Headers
     const headers = "ID,Date,Due Date,Requester,Dept,Vendor,PO Number,DA Ref,Beneficiary,Mode,Amount,Currency,Status,Narrative\n";
     
-    // Row Mapping with CSV cleaning
+    // Updated Row Mapping with CSV cleaning
     const rows = filteredData.map(r => {
-      const clean = (val) => (val ? String(val).replace(/,/g, ' ').replace(/\n/g, ' ') : 'N/A');
+      const clean = (val) => (val ? String(val).replace(/,/g, ' ') : 'N/A');
       
       return [
         r._id,
-        r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'N/A',
-        r.dueDate ? new Date(r.dueDate).toLocaleDateString() : 'N/A',
+        new Date(r.createdAt).toLocaleDateString(),
+        new Date(r.dueDate).toLocaleDateString(),
         clean(r.requesterName),
         clean(r.department),
         clean(r.vendorName),
@@ -108,9 +107,9 @@ const AccountantDashboard = () => {
         clean(r.daRefNo),
         clean(r.beneficiaryDetails),
         clean(r.modeOfPayment),
-        r.amount || 0,
-        r.currency || 'USD',
-        r.status || 'Pending',
+        r.amount,
+        r.currency,
+        r.status,
         clean(r.requestNarrative || r.description)
       ].join(",");
     }).join("\n");
@@ -199,7 +198,7 @@ const AccountantDashboard = () => {
               {user?.name?.substring(0,2).toUpperCase() || 'AC'}
             </div>
             <h4 className="text-sm font-black text-gray-900 leading-none">{user?.name || 'Accountant'}</h4>
-            <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">ACCOUNT ACCESS: ACTIVE</p>
+            <p className="text-[9px] font-bold text-green-500 mt-2 tracking-widest">Account ACCESS: ACTIVE</p>
           </div>
           <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
             SIGN OUT
@@ -211,7 +210,7 @@ const AccountantDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
-              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All '}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Dashboard' : 'History'}</span>
+              {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All'}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Dashboard' : 'History'}</span>
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3 underline decoration-[#A67C52] decoration-2 underline-offset-4">
               {view === 'queue' ? `Upload Queue (${requisitions.length})` : view === 'history' ? `Total Records (${history.length})` : `All Requests (${allDepartments.length})`}
@@ -326,7 +325,7 @@ const AccountantDashboard = () => {
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
                     {selectedReq.isArchiveView ? 'System Record ' : 'Confirm Disbursement'}
                   </h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-[0.2em] uppercase">
+                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase tracking-[0.2em]">
                     {selectedReq.isArchiveView ? 'Audit Database Reference' : 'Final Treasury Verification'}: #{selectedReq._id?.slice(-6)}
                   </p>
                 </div>
