@@ -31,6 +31,15 @@ const HODDashboard = () => {
     allDepartments.find((r) => r._id === selectedReqId) || 
     null;
 
+  // Currency normalizer helper
+  const getStandardCurrency = (currencyStr) => {
+    if (!currencyStr) return 'NGN';
+    const c = String(currencyStr).trim().toUpperCase();
+    if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
+    if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
+    return c;
+  };
+
   const syncPortal = async () => {
     if (!token || !user.email) {
       navigate('/');
@@ -91,13 +100,39 @@ const HODDashboard = () => {
     );
   };
 
+  // Calculate total amounts explicitly approved by this HOD
+  const computeHODApprovedTotals = () => {
+    const approvedList = filterList(history).filter((req) => {
+      const status = String(req.status || '').toUpperCase().trim();
+      const hasHodApproval = req.approvalHistory?.some(
+        (entry) =>
+          (entry.actorRole === 'HOD' || entry.actorName === user.name) &&
+          String(entry.action).toUpperCase() === 'APPROVED'
+      );
+
+      return hasHodApproval || (!['DECLINED', 'REJECTED'].includes(status));
+    });
+
+    return approvedList.reduce(
+      (acc, req) => {
+        const currency = getStandardCurrency(req.currency);
+        const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+        acc[currency] = (acc[currency] || 0) + cleanedAmount;
+        return acc;
+      },
+      { NGN: 0, USD: 0 }
+    );
+  };
+
+  const totalsByCurrency = computeHODApprovedTotals();
+
   const exportData = () => {
     const targetData = activeTab === 'queue' ? filterList(requisitions) : activeTab === 'history' ? filterList(history) : filterList(allDepartments);
     if (targetData.length === 0) return toast.error("Nothing to export");
 
     const headers = "ID,Date,Due Date,Staff,Amount,Currency,Vendor,Status\n";
     const csvContent = targetData.map(r => 
-      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${new Date(r.dueDate).toLocaleDateString()},${r.requesterName},${r.amount},${r.currency},${r.vendorName || 'N/A'},${r.status}`
+      `${r._id},${new Date(r.createdAt).toLocaleDateString()},${new Date(r.dueDate).toLocaleDateString()},${r.requesterName},${parseFloat(String(r.amount || '0').replace(/[^0-9.]/g, ''))},${getStandardCurrency(r.currency)},${r.vendorName || 'N/A'},${r.status}`
     ).join("\n");
 
     const blob = new Blob([headers + csvContent], { type: 'text/csv' });
@@ -154,7 +189,7 @@ const HODDashboard = () => {
         <div className="flex items-center gap-4">
            {!notificationsEnabled && (
              <button onClick={handleEnableNotifications} className="hidden md:block bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
-               🔔 ENABLE ALERTS
+                🔔 ENABLE ALERTS
              </button>
            )}
            <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg active:scale-90 transition-all">
@@ -175,14 +210,14 @@ const HODDashboard = () => {
           </div>
           <div className="space-y-2 pt-4 border-t border-gray-50">
              <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
-               Sign Out
+                Sign Out
              </button>
           </div>
         </div>
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-10 gap-6 mt-4">
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter leading-none italic">HOD <span className="text-[#A67C52]">DASHBOARD</span></h2>
             <div className="flex gap-6 mt-6">
@@ -198,14 +233,34 @@ const HODDashboard = () => {
             </div>
           </div>
           
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* NAIRA APPROVED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Approved By You (NGN)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                NGN {totalsByCurrency.NGN.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* DOLLAR APPROVED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Approved By You (USD)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                USD ${totalsByCurrency.USD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
             <input 
               type="text" 
               placeholder="SEARCH STAFF OR VENDOR..." 
-              className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm"
+              className="bg-white border-2 border-gray-100 rounded-2xl px-5 py-3 text-[10px] font-bold flex-1 min-w-[200px] outline-none focus:border-[#A67C52] shadow-sm"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button onClick={exportData} className="bg-black text-white px-8 py-3 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg">
+            <button onClick={exportData} className="bg-black text-white px-6 py-3.5 rounded-2xl text-[10px] font-black hover:bg-[#A67C52] transition-all shadow-lg">
               EXPORT CSV
             </button>
           </div>
@@ -213,33 +268,46 @@ const HODDashboard = () => {
 
         <div className="grid gap-4">
           {activeTab === 'queue' ? (
-            filterList(requisitions).map(req => (
-              <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center gap-6 flex-1">
-                  <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50">
-                    <span className="text-[8px] font-black text-[#A67C52]">{req.currency}</span>
-                    <span className="text-sm font-black text-gray-800">{req.amount?.toLocaleString()}</span>
+            filterList(requisitions).map(req => {
+              const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+              const standardCurrency = getStandardCurrency(req.currency);
+
+              return (
+                <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50 px-2 text-center">
+                      <span className="text-[8px] font-black text-[#A67C52]">{standardCurrency}</span>
+                      <span className="text-sm font-black text-gray-800">{cleanedAmount.toLocaleString('en-US')}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{req.requesterName}</h3>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase italic">Vendor: {req.vendorName || 'General'}</p>
-                  </div>
+                  <button onClick={() => setSelectedReqId(req._id)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
+                    REVIEW REQUEST
+                  </button>
                 </div>
-                <button onClick={() => setSelectedReqId(req._id)} className="w-full md:w-auto bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] shadow-lg hover:bg-[#A67C52] transition-all">
-                  REVIEW REQUEST
-                </button>
-              </div>
-            ))
+              );
+            })
           ) : activeTab === 'history' ? (
             <RequisitionHistory requisitions={filterList(history)} />
           ) : (
-             <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8">
-               {filterList(allDepartments).map(req => (
-                 <div key={req._id} className="flex justify-between items-center py-4 border-b border-gray-50 last:border-0 text-[10px] font-black">
-                    <span>{req.requesterName}</span>
-                    <span className="text-[#A67C52]">{req.status}</span>
-                 </div>
-               ))}
+             <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 divide-y divide-gray-50">
+               {filterList(allDepartments).map(req => {
+                 const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+                 const standardCurrency = getStandardCurrency(req.currency);
+
+                 return (
+                   <div key={req._id} className="flex justify-between items-center py-4 border-b border-gray-50 last:border-0 text-[10px] font-black">
+                     <div className="flex items-center gap-3">
+                       <span>{req.requesterName}</span>
+                       <span className="text-gray-400">({standardCurrency} {cleanedAmount.toLocaleString()})</span>
+                     </div>
+                     <span className="text-[#A67C52]">{req.status}</span>
+                   </div>
+                 );
+               })}
              </div>
           )}
         </div>
@@ -261,7 +329,10 @@ const HODDashboard = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { label: "Requester", value: selectedReq.requesterName },
-                  { label: "Value", value: `${selectedReq.currency} ${selectedReq.amount?.toLocaleString()}` },
+                  { 
+                    label: "Value", 
+                    value: `${getStandardCurrency(selectedReq.currency)} ${parseFloat(String(selectedReq.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString()}` 
+                  },
                   { label: "Due Date", value: new Date(selectedReq.dueDate).toLocaleDateString() },
                   { label: "Vendor", value: selectedReq.vendorName || 'N/A' },
                   { label: "PO Number", value: selectedReq.poNumber || 'N/A' },
