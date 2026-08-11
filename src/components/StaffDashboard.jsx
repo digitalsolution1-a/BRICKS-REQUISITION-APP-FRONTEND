@@ -39,17 +39,25 @@ function StaffDashboard() {
 
   // Helper to extract the last decline comment from approval history
   const getDeclineComment = (req) => {
-    if (req.status === 'Declined' && req.approvalHistory?.length > 0) {
-      const declineEntry = [...req.approvalHistory].reverse().find(e => e.action === 'Declined');
+    const s = String(req.status || '').toUpperCase();
+    if ((s === 'DECLINED' || s === 'REJECTED') && req.approvalHistory?.length > 0) {
+      const declineEntry = [...req.approvalHistory].reverse().find(e => String(e.action).toUpperCase() === 'DECLINED');
       return declineEntry?.comment;
     }
     return null;
   };
 
-  // Calculate total approved/disbursed amount safely
+  // Safe Total Disbursed / Approved calculation (Handles case sensitivity + removes formatting commas)
   const totalApprovedAmount = myRequests
-    .filter(req => ['Approved', 'Paid', 'Disbursed', 'Finance Approved'].includes(req.status))
-    .reduce((sum, req) => sum + (Number(req.amount) || 0), 0);
+    .filter(req => {
+      const status = String(req.status || '').toUpperCase().trim();
+      return ['APPROVED', 'PAID', 'DISBURSED', 'FINANCE APPROVED', 'MD APPROVED'].includes(status);
+    })
+    .reduce((sum, req) => {
+      // Remove commas or non-numeric characters before converting to number
+      const cleanedAmount = String(req.amount || '0').replace(/[^0-9.]/g, '');
+      return sum + (parseFloat(cleanedAmount) || 0);
+    }, 0);
 
   // Get active currency code or fallback to NGN
   const userCurrency = myRequests.find(req => req.currency)?.currency || 'NGN';
@@ -65,14 +73,15 @@ function StaffDashboard() {
   };
 
   const getStatusBadge = (status, currentStage) => {
-    if (status === 'Declined' || status === 'Rejected') {
+    const s = String(status || '').toUpperCase();
+    if (s === 'DECLINED' || s === 'REJECTED') {
       return 'bg-red-50 text-red-500 border border-red-100';
     }
-    if (status === 'Disbursed' || status === 'Paid') {
+    if (s === 'DISBURSED' || s === 'PAID') {
       return 'bg-emerald-50 text-emerald-600 border border-emerald-200';
     }
 
-    const stage = String(currentStage).toUpperCase();
+    const stage = String(currentStage || '').toUpperCase();
     switch (stage) {
       case 'HOD':
         return 'bg-amber-50 text-amber-700 border border-amber-200';
@@ -89,10 +98,11 @@ function StaffDashboard() {
   };
 
   const formatStatusText = (status, currentStage) => {
-    if (status === 'Declined' || status === 'Rejected') return 'DECLINED';
-    if (status === 'Disbursed' || status === 'Paid') return 'DISBURSED';
+    const s = String(status || '').toUpperCase();
+    if (s === 'DECLINED' || s === 'REJECTED') return 'DECLINED';
+    if (s === 'DISBURSED' || s === 'PAID') return 'DISBURSED';
 
-    const stage = String(currentStage).toUpperCase();
+    const stage = String(currentStage || '').toUpperCase();
     if (stage === 'ACCOUNTS' || stage === 'ACCOUNTANT') {
       return 'WITH ACCOUNTANT';
     }
@@ -100,7 +110,7 @@ function StaffDashboard() {
       return `WITH ${stage}`;
     }
     
-    return status === 'Approved' ? 'PAYMENT PENDING' : status;
+    return s === 'APPROVED' ? 'PAYMENT PENDING' : status;
   };
 
   if (loading) return (
@@ -190,11 +200,11 @@ function StaffDashboard() {
 
               {/* STAT CARDS CONTAINER */}
               <div className="flex items-center gap-3 w-full md:w-auto">
-                {/* TOTAL APPROVED / DISBURSED CARD */}
+                {/* TOTAL DISBURSED CARD */}
                 <div className="flex-1 md:flex-none bg-black text-white px-6 py-3 rounded-2xl shadow-md border border-black">
-                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Total Approved</p>
+                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Total Disbursed</p>
                   <p className="text-sm font-black tracking-tight mt-0.5">
-                    {userCurrency} {totalApprovedAmount.toLocaleString()}
+                    {userCurrency} {totalApprovedAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
@@ -227,14 +237,16 @@ function StaffDashboard() {
                   ) : (
                     myRequests.map((req) => {
                       const comment = getDeclineComment(req);
+                      const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+
                       return (
                         <tr key={req._id} className="text-sm font-bold text-gray-600 hover:bg-[#FBF9F6] transition-all group">
                           <td className="py-6 whitespace-nowrap text-[11px] font-black text-gray-400">
-                            {new Date(req.createdAt).toLocaleDateString('en-GB')}
+                            {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-GB') : 'N/A'}
                           </td>
                           <td className="py-6">
                             <p className="font-black text-gray-900 uppercase text-xs tracking-tight">{req.vendorName || "General Requisition"}</p>
-                            <p className="text-[9px] text-gray-400 mt-1 italic">REF: #{req._id.slice(-6)}</p>
+                            <p className="text-[9px] text-gray-400 mt-1 italic">REF: #{req._id ? req._id.slice(-6) : '------'}</p>
                             {comment && (
                               <div className="mt-2 p-2 bg-red-50 border-l-2 border-red-500 rounded">
                                 <p className="text-[8px] font-black text-red-600 uppercase">Rejection Reason:</p>
@@ -243,7 +255,7 @@ function StaffDashboard() {
                             )}
                           </td>
                           <td className="py-6 whitespace-nowrap font-black text-[#A67C52] text-xs">
-                            {req.currency} {req.amount.toLocaleString()}
+                            {req.currency || 'NGN'} {cleanedAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-6">
                             <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase font-black tracking-widest ${getStatusBadge(req.status, req.currentStage)}`}>
@@ -260,18 +272,18 @@ function StaffDashboard() {
                             </button>
 
                             {(
-                              (req.status === 'Pending' && String(req.currentStage).toUpperCase() === 'HOD') || 
-                              (req.status === 'Declined')
+                              (String(req.status).toUpperCase() === 'PENDING' && String(req.currentStage).toUpperCase() === 'HOD') || 
+                              (String(req.status).toUpperCase() === 'DECLINED')
                             ) && (
                               <button 
                                 onClick={() => navigate(`/edit-requisition/${req._id}`)}
                                 className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
-                                  req.status === 'Declined' 
+                                  String(req.status).toUpperCase() === 'DECLINED' 
                                     ? 'bg-red-500 text-white hover:bg-red-600' 
                                     : 'bg-black text-white hover:bg-[#A67C52]'
                                 }`}
                               >
-                                {req.status === 'Declined' ? 'Edit & Resubmit' : 'Edit'}
+                                {String(req.status).toUpperCase() === 'DECLINED' ? 'Edit & Resubmit' : 'Edit'}
                               </button>
                             )}
                           </td>
