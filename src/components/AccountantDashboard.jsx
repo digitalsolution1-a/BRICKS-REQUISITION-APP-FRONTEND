@@ -89,41 +89,25 @@ const AccountantDashboard = () => {
     );
   };
 
-  // Calculate total amounts processed/paid by THIS SPECIFIC ACCOUNTANT or general paid records in history/all departments
+  // Calculate total amounts processed/paid matching MD authorization criteria
   const computeAccountantProcessedTotals = () => {
     const sourceList = Array.isArray(allDepartments) && allDepartments.length > 0 ? allDepartments : history;
     const processedList = sourceList.filter((req) => {
       const currentStatus = String(req.status || '').toUpperCase().trim();
 
-      const isCurrentlyRejected = 
-        currentStatus.includes('DECLINED') || 
-        currentStatus.includes('REJECTED');
-
-      if (isCurrentlyRejected) {
-        return false;
-      }
-
+      // Must be paid/disbursed and NOT rejected/declined
       const isPaid = currentStatus === 'PAID' || currentStatus === 'DISBURSED';
+      const isRejected = currentStatus.includes('DECLINED') || currentStatus.includes('REJECTED');
+      if (!isPaid || isRejected) return false;
 
-      const processedByThisUser = req.approvalHistory?.some((entry) => {
-        const isPaidOrApproved = String(entry.action || '').toUpperCase() === 'PAID' || String(entry.action || '').toUpperCase() === 'APPROVED' || String(entry.action || '').toUpperCase() === 'DISBURSE';
-        const isAccountantRole = String(entry.actorRole || '').toUpperCase() === 'ACCOUNTANT' || String(entry.actorRole || '').toUpperCase() === 'FINANCE';
-        
-        const matchesUser = 
-          (user.email && (entry.actorEmail === user.email || entry.email === user.email)) ||
-          (user.name && (entry.actorName === user.name || entry.name === user.name)) ||
-          (user._id && (entry.actorId === user._id || entry.userId === user._id));
-
-        return isPaidOrApproved && isAccountantRole && (matchesUser || !user.email);
+      // CRITICAL: Must have explicit MD approval in its history (matching MD dashboard logic)
+      const hasMDApproval = req.approvalHistory?.some((entry) => {
+        const role = String(entry.actorRole || '').toUpperCase();
+        const action = String(entry.action || '').toUpperCase();
+        return role === 'MD' && (action === 'APPROVE' || action === 'APPROVED' || action === 'FORWARD');
       });
 
-      const directUserMatch = 
-        (req.processedByEmail && req.processedByEmail === user.email) ||
-        (req.accountantEmail && req.accountantEmail === user.email) ||
-        (req.processedBy && req.processedBy === user.name) ||
-        isPaid;
-
-      return processedByThisUser || directUserMatch;
+      return hasMDApproval;
     });
 
     return processedList.reduce(
