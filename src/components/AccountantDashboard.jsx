@@ -21,6 +21,15 @@ const AccountantDashboard = () => {
   const token = localStorage.getItem('token');
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  // Currency normalizer helper
+  const getStandardCurrency = (currencyStr) => {
+    if (!currencyStr) return 'NGN';
+    const c = String(currencyStr).trim().toUpperCase();
+    if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
+    if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
+    return c;
+  };
+
   // --- HELPER: GET MD DISBURSEMENT INSTRUCTIONS ---
   const getMDInstructions = (historyArray) => {
     if (!historyArray || !Array.isArray(historyArray)) return "Standard disbursement approved.";
@@ -79,6 +88,56 @@ const AccountantDashboard = () => {
       req._id?.includes(searchTerm)
     );
   };
+
+  // Calculate total amounts processed/paid by THIS SPECIFIC ACCOUNTANT or general paid records in history/all departments
+  const computeAccountantProcessedTotals = () => {
+    const sourceList = Array.isArray(allDepartments) && allDepartments.length > 0 ? allDepartments : history;
+    const processedList = sourceList.filter((req) => {
+      const currentStatus = String(req.status || '').toUpperCase().trim();
+
+      const isCurrentlyRejected = 
+        currentStatus.includes('DECLINED') || 
+        currentStatus.includes('REJECTED');
+
+      if (isCurrentlyRejected) {
+        return false;
+      }
+
+      const isPaid = currentStatus === 'PAID' || currentStatus === 'DISBURSED';
+
+      const processedByThisUser = req.approvalHistory?.some((entry) => {
+        const isPaidOrApproved = String(entry.action || '').toUpperCase() === 'PAID' || String(entry.action || '').toUpperCase() === 'APPROVED' || String(entry.action || '').toUpperCase() === 'DISBURSE';
+        const isAccountantRole = String(entry.actorRole || '').toUpperCase() === 'ACCOUNTANT' || String(entry.actorRole || '').toUpperCase() === 'FINANCE';
+        
+        const matchesUser = 
+          (user.email && (entry.actorEmail === user.email || entry.email === user.email)) ||
+          (user.name && (entry.actorName === user.name || entry.name === user.name)) ||
+          (user._id && (entry.actorId === user._id || entry.userId === user._id));
+
+        return isPaidOrApproved && isAccountantRole && (matchesUser || !user.email);
+      });
+
+      const directUserMatch = 
+        (req.processedByEmail && req.processedByEmail === user.email) ||
+        (req.accountantEmail && req.accountantEmail === user.email) ||
+        (req.processedBy && req.processedBy === user.name) ||
+        isPaid;
+
+      return processedByThisUser || directUserMatch;
+    });
+
+    return processedList.reduce(
+      (acc, req) => {
+        const currency = getStandardCurrency(req.currency);
+        const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
+        acc[currency] = (acc[currency] || 0) + cleanedAmount;
+        return acc;
+      },
+      { NGN: 0, USD: 0 }
+    );
+  };
+
+  const totalsByCurrency = computeAccountantProcessedTotals();
 
   const exportToCSV = () => {
     let dataToExport = [];
@@ -207,7 +266,7 @@ const AccountantDashboard = () => {
       )}
 
       <main className="max-w-7xl mx-auto p-6">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4 mt-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-10 gap-6 mt-4">
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
               {view === 'queue' ? 'Accounts ' : view === 'history' ? 'Disbursement ' : 'All'}<span className="text-[#A67C52]">{view === 'all' ? 'Departments' : view === 'queue' ? 'Dashboard' : 'History'}</span>
@@ -223,11 +282,31 @@ const AccountantDashboard = () => {
             <button onClick={() => setView('all')} className={`flex-1 py-2 text-center rounded-lg text-[8px] font-black ${view === 'all' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>ALL DEPTS</button>
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* NAIRA PROCESSED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Processed (NGN)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                NGN {totalsByCurrency.NGN.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* DOLLAR PROCESSED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Processed (USD)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                USD ${totalsByCurrency.USD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
             <input 
               type="text" 
               placeholder="SEARCH VENDOR OR REF..."
-              className="bg-white border-2 border-gray-100 rounded-2xl px-6 py-4 text-[10px] font-bold flex-1 md:w-72 outline-none focus:border-[#A67C52] shadow-sm transition-all"
+              className="bg-white border-2 border-gray-100 rounded-2xl px-6 py-4 text-[10px] font-bold flex-1 md:w-60 outline-none focus:border-[#A67C52] shadow-sm transition-all"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <button onClick={exportToCSV} className="bg-black text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#A67C52] shadow-lg flex items-center gap-2">
@@ -257,7 +336,7 @@ const AccountantDashboard = () => {
                     <div className="flex items-center gap-8">
                        <div className="text-right">
                           <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Amount</p>
-                          <p className="text-2xl font-black text-gray-900">{req.currency} {req.amount.toLocaleString()}</p>
+                          <p className="text-2xl font-black text-gray-900">{getStandardCurrency(req.currency)} {parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString()}</p>
                        </div>
                        <button 
                         onClick={() => setSelectedReq(req)} 
@@ -295,7 +374,7 @@ const AccountantDashboard = () => {
                       <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
                     </div>
                     <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{req.currency} {req.amount?.toLocaleString()}</p>
+                    <p className="text-base font-black text-[#A67C52] leading-none mt-1">{getStandardCurrency(req.currency)} {parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString()}</p>
                   </div>
                   <button 
                     onClick={() => setSelectedReq({ ...req, isArchiveView: true })} 
@@ -373,7 +452,7 @@ const AccountantDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Total Value</p>
-                  <p className="text-[11px] font-black text-[#A67C52]">{selectedReq.currency} {selectedReq.amount?.toLocaleString()}</p>
+                  <p className="text-[11px] font-black text-[#A67C52]">{getStandardCurrency(selectedReq.currency)} {parseFloat(String(selectedReq.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString()}</p>
                 </div>
               </div>
 
