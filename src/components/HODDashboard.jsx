@@ -407,7 +407,7 @@ const HODDashboard = () => {
                   {/* --- PRIORITY SELECTION TOGGLE --- */}
                   <div>
                     <label className="text-[9px] font-black text-gray-400 mb-3 block uppercase tracking-widest">
-                      Set Execution Priority
+                      Set Rquest Priority
                     </label>
                     <div className="grid grid-cols-2 gap-4">
                       <button
