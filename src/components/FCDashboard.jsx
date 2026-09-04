@@ -41,6 +41,12 @@ const FCDashboard = () => {
     return hodEntry ? hodEntry.comment : null;
   };
 
+  // Helper to check if request is urgent
+  const isUrgentRequest = (req) => {
+    const priority = String(req?.priority || req?.urgency || '').toUpperCase().trim();
+    return priority === 'URGENT' || priority === 'HIGH';
+  };
+
   const fetchData = async () => {
     if (!token) return navigate('/');
     try {
@@ -164,10 +170,11 @@ const FCDashboard = () => {
     else dataToExport = filterList(allDepartments);
 
     if (dataToExport.length === 0) return toast.error("No data to export");
-    const headers = "ID,Date,Requester,Department,Vendor,Amount,Currency,Status\n";
+    const headers = "ID,Date,Requester,Department,Vendor,Amount,Currency,Priority,Status\n";
     const data = dataToExport.map(r => {
       const cleanedAmount = parseFloat(String(r.amount || '0').replace(/[^0-9.]/g, '')) || 0;
-      return `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${cleanedAmount},${getStandardCurrency(r.currency)},${r.status}`;
+      const priorityLabel = isUrgentRequest(r) ? 'Urgent' : 'Normal';
+      return `${r._id},${new Date(r.createdAt).toLocaleDateString()},${r.requesterName},${r.department},${r.vendorName || 'N/A'},${cleanedAmount},${getStandardCurrency(r.currency)},${priorityLabel},${r.status}`;
     }).join("\n");
     const blob = new Blob([headers + data], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -215,6 +222,17 @@ const FCDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#FBF9F6] uppercase">
+      {/* Inline styles for Amber Flash Animation */}
+      <style>{`
+        @keyframes amberFlash {
+          0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 12px rgba(245, 158, 11, 0.8); }
+          50% { opacity: 0.3; transform: scale(0.96); box-shadow: 0 0 2px rgba(245, 158, 11, 0.2); }
+        }
+        .amber-flash-light {
+          animation: amberFlash 1.2s infinite ease-in-out;
+        }
+      `}</style>
+
       {/* NAVBAR */}
       <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50 shadow-xl">
         <div className="flex items-center gap-3">
@@ -298,17 +316,29 @@ const FCDashboard = () => {
               {filterList(requisitions).map(req => {
                 const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
                 const standardCurrency = getStandardCurrency(req.currency);
+                const isUrgent = isUrgentRequest(req);
 
                 return (
                   <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-6 flex-1">
-                      <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50 px-2 text-center">
-                        <span className="text-[8px] font-black text-[#A67C52]">{standardCurrency}</span>
-                        <span className="text-sm font-black text-gray-800">{cleanedAmount.toLocaleString('en-US')}</span>
-                      </div>
+                      {/* AMBER FLASH LIGHT OR STANDARD CURRENCY BOX */}
+                      {isUrgent ? (
+                        <div className="w-16 h-16 bg-amber-500 rounded-2xl flex flex-col items-center justify-center border-2 border-amber-300 px-2 text-center amber-flash-light shadow-lg">
+                          <span className="text-[7px] font-black text-black tracking-tighter">URGENT</span>
+                          <span className="text-[10px] font-black text-black">{standardCurrency}</span>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50 px-2 text-center">
+                          <span className="text-[8px] font-black text-[#A67C52]">{standardCurrency}</span>
+                          <span className="text-sm font-black text-gray-800">{cleanedAmount.toLocaleString('en-US')}</span>
+                        </div>
+                      )}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">HOD Approved</span>
+                          {isUrgent && (
+                            <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter border border-amber-300">Priority: Urgent</span>
+                          )}
                           <span className="text-gray-400 font-bold text-[9px] tracking-widest">{req.department}</span>
                         </div>
                         <h3 className="text-xl font-black text-gray-900 leading-none tracking-tight">{req.requesterName}</h3>
@@ -336,20 +366,31 @@ const FCDashboard = () => {
               {filterList(allDepartments).map(req => {
                 const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
                 const standardCurrency = getStandardCurrency(req.currency);
+                const isUrgent = isUrgentRequest(req);
 
                 return (
                   <div key={req._id} className="bg-white rounded-[2.5rem] border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-6 flex-1">
-                      <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50 px-2 text-center">
-                        <span className="text-[8px] font-black text-[#A67C52]">{standardCurrency}</span>
-                        <span className="text-sm font-black text-gray-800">{cleanedAmount.toLocaleString('en-US')}</span>
-                      </div>
+                      {isUrgent ? (
+                        <div className="w-16 h-16 bg-amber-500 rounded-2xl flex flex-col items-center justify-center border-2 border-amber-300 px-2 text-center amber-flash-light shadow-lg">
+                          <span className="text-[7px] font-black text-black tracking-tighter">URGENT</span>
+                          <span className="text-[10px] font-black text-black">{standardCurrency}</span>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-[#FBF9F6] rounded-2xl flex flex-col items-center justify-center border border-gray-50 px-2 text-center">
+                          <span className="text-[8px] font-black text-[#A67C52]">{standardCurrency}</span>
+                          <span className="text-sm font-black text-gray-800">{cleanedAmount.toLocaleString('en-US')}</span>
+                        </div>
+                      )}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
                             req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
                             req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
                           }`}>{req.status}</span>
+                          {isUrgent && (
+                            <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter border border-amber-300">Priority: Urgent</span>
+                          )}
                           <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
                           <span className="text-gray-400 font-bold text-[9px] tracking-widest">{req.department}</span>
                         </div>
@@ -458,6 +499,17 @@ const FCDashboard = () => {
               </div>
 
               <div className="border-t border-gray-100 pt-8 mt-4 text-left">
+                {/* PRIORITY FLASH LIGHT BEFORE COMMENT SECTION */}
+                {isUrgentRequest(selectedReq) && (
+                  <div className="mb-4 bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl flex items-center gap-3">
+                    <div className="w-5 h-5 bg-amber-500 rounded-full amber-flash-light flex-shrink-0"></div>
+                    <div>
+                      <p className="text-[10px] font-black text-amber-800 tracking-wider">URGENT PRIORITY ACTIVE</p>
+                      <p className="text-[9px] font-bold text-amber-600">This request was marked as urgent by the HOD and requires immediate financial review.</p>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest">
                   {activeTab === 'all' ? 'Append Internal Audit Note (Keeps stage unchanged)' : 'FC Vetting Remarks (Visible to MD)'}
                 </p>
