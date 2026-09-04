@@ -419,7 +419,7 @@ const HODDashboard = () => {
                             : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
                         }`}
                       >
-                        NORMAL PRIORITY
+                        NORMAL REQUEST
                       </button>
                       <button
                         type="button"
@@ -430,7 +430,7 @@ const HODDashboard = () => {
                             : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
                         }`}
                       >
-                        🔥 URGENT PRIORITY
+                        🔥 URGENT REQUEST
                       </button>
                     </div>
                   </div>
