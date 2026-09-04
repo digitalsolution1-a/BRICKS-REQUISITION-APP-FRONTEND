@@ -430,7 +430,7 @@ const HODDashboard = () => {
                             : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
                         }`}
                       >
-                        🔥 URGENT REQUEST
+                        URGENT REQUEST
                       </button>
                     </div>
                   </div>
