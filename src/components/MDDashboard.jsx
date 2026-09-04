@@ -1,1087 +1,602 @@
- import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
 import toast from 'react-hot-toast';
-
 import { useNavigate } from 'react-router-dom';
-
 import AttachmentViewer from '../components/AttachmentViewer';
-
 import RequisitionHistory from '../components/RequisitionHistory';
 
-
-
 const MDDashboard = () => {
-
   const [inbox, setInbox] = useState([]);
-
   const [backlog, setBacklog] = useState([]);
-
   const [history, setHistory] = useState([]);
-
   const [allDepartments, setAllDepartments] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [activeTab, setActiveTab] = useState('pending'); 
-
   const [searchTerm, setSearchTerm] = useState('');
-
   const [selectedReq, setSelectedReq] = useState(null);
-
   const [mdComment, setMdComment] = useState('');
-
   
-
   const [showProfile, setShowProfile] = useState(false);
-
   const [notificationsEnabled, setNotificationsEnabled] = useState(
-
     Notification.permission === 'granted'
-
   );
 
-
-
   const APPROVAL_TEMPLATES = [
-
     "Process via FAC",
-
     "Authorize for immediate payment via Access",
-
     "Authorize for immediate payment via Fidelity"
-
   ];
 
-
-
   const navigate = useNavigate();
-
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-
   const token = localStorage.getItem('token');
-
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-
-
   // Currency normalizer helper
-
   const getStandardCurrency = (currencyStr) => {
-
     if (!currencyStr) return 'NGN';
-
     const c = String(currencyStr).trim().toUpperCase();
-
     if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
-
     if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
-
     return c;
-
   };
 
-
-
-  // --- HELPERS TO EXTRACT COMMENTS ---
-
+  // --- HELPERS TO EXTRACT COMMENTS & PRIORITY ---
   const getFCComment = (historyArray) => {
-
     if (!historyArray || !Array.isArray(historyArray)) return null;
-
     const fcEntry = [...historyArray].reverse().find(entry => entry.actorRole === 'FC');
-
     return fcEntry ? fcEntry.comment : null;
-
   };
-
-
 
   const getHODComment = (historyArray) => {
-
     if (!historyArray || !Array.isArray(historyArray)) return null;
-
     const hodEntry = [...historyArray].find(entry => entry.actorRole === 'HOD');
-
     return hodEntry ? { comment: hodEntry.comment, name: hodEntry.actorName } : null;
-
   };
 
-
+  const getHODPriority = (req) => {
+    if (req.priority) return String(req.priority).trim().toUpperCase();
+    if (req.approvalHistory && Array.isArray(req.approvalHistory)) {
+      const hodEntry = req.approvalHistory.find(entry => entry.actorRole === 'HOD' && entry.priority);
+      if (hodEntry && hodEntry.priority) {
+        return String(hodEntry.priority).trim().toUpperCase();
+      }
+    }
+    return 'NORMAL';
+  };
 
   const fetchData = async () => {
-
     if (!token) return navigate('/');
 
-
-
     try {
-
       setLoading(true);
-
       const [mdRes, fcRes, historyRes, allDeptsRes] = await Promise.all([
-
         axios.get(`${API_BASE_URL}/requisitions/pending/MD`, { 
-
           headers: { Authorization: `Bearer ${token}` } 
-
         }),
-
         axios.get(`${API_BASE_URL}/requisitions/pending/FC`, { 
-
           headers: { Authorization: `Bearer ${token}` } 
-
         }).catch(() => ({ data: [] })),
-
         axios.get(`${API_BASE_URL}/requisitions/history/MD`, { 
-
           headers: { Authorization: `Bearer ${token}` } 
-
         }).catch(() => ({ data: [] })),
-
         axios.get(`${API_BASE_URL}/requisitions/all`, { 
-
           headers: { Authorization: `Bearer ${token}` } 
-
         }).catch(() => ({ data: [] }))
-
       ]);
 
-
-
       setInbox(Array.isArray(mdRes.data) ? mdRes.data : []);
-
       setBacklog(Array.isArray(fcRes.data) ? fcRes.data : []);
-
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
-
       setAllDepartments(Array.isArray(allDeptsRes.data) ? allDeptsRes.data : []);
 
-
-
       if ('setAppBadge' in navigator) {
-
         const total = (mdRes.data?.length || 0) + (fcRes.data?.length || 0);
-
         total > 0 ? navigator.setAppBadge(total) : navigator.clearAppBadge();
-
       }
-
-
 
     } catch (err) {
-
       console.error("Dashboard Sync Error:", err);
-
       toast.error("Executive portal sync failed");
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
-
-
 
   useEffect(() => {
-
     fetchData();
-
   }, [token, API_BASE_URL]);
 
-
-
   const handleEnableNotifications = async () => {
-
     if (!("Notification" in window)) return toast.error("Notifications not supported");
-
     const permission = await Notification.requestPermission();
-
     if (permission === 'granted') {
-
       setNotificationsEnabled(true);
-
       toast.success("EXECUTIVE ALERTS ACTIVE", {
-
         icon: '🔔',
-
         style: { background: '#000', color: '#A67C52', fontWeight: 'bold' }
-
       });
-
     }
-
   };
-
-
 
   const filterList = (list) => {
-
     if (!Array.isArray(list)) return [];
-
     return list.filter(req => 
-
       req.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-
       req.vendorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-
       req.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-
       req._id?.includes(searchTerm)
-
     );
-
   };
-
-
 
   // Calculate total amounts approved/authorized by THIS SPECIFIC MD
-
   // excluding any requisitions that were later rejected or declined
-
   const computeMDApprovedTotals = () => {
-
     const approvedList = filterList(history).filter((req) => {
-
       const currentStatus = String(req.status || '').toUpperCase().trim();
 
-
-
       // 1. Exclude any requisition currently in a declined or rejected state
-
       const isCurrentlyRejected = 
-
         currentStatus.includes('DECLINED') || 
-
         currentStatus.includes('REJECTED');
 
-
-
       if (isCurrentlyRejected) {
-
         return false;
-
       }
 
-
-
       // 2. Verify that this specific MD granted approval in the approval history
-
       const approvedByThisUser = req.approvalHistory?.some((entry) => {
-
         const isApprovedAction = String(entry.action || '').toUpperCase() === 'APPROVED';
-
         const isMDRole = String(entry.actorRole || '').toUpperCase() === 'MD';
-
         
-
         const matchesUser = 
-
           (user.email && (entry.actorEmail === user.email || entry.email === user.email)) ||
-
           (user.name && (entry.actorName === user.name || entry.name === user.name)) ||
-
           (user._id && (entry.actorId === user._id || entry.userId === user._id));
 
-
-
         return isApprovedAction && isMDRole && (matchesUser || !user.email);
-
       });
 
-
-
       // 3. Fallback check for direct fields if available
-
       const directUserMatch = 
-
         (req.approvedByEmail && req.approvedByEmail === user.email) ||
-
         (req.mdEmail && req.mdEmail === user.email) ||
-
         (req.approvedBy && req.approvedBy === user.name);
 
-
-
       return approvedByThisUser || directUserMatch;
-
     });
 
-
-
     return approvedList.reduce(
-
       (acc, req) => {
-
         const currency = getStandardCurrency(req.currency);
-
         const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
-
         acc[currency] = (acc[currency] || 0) + cleanedAmount;
-
         return acc;
-
       },
-
       { NGN: 0, USD: 0 }
-
     );
-
   };
-
-
 
   const totalsByCurrency = computeMDApprovedTotals();
 
-
-
   const exportData = () => {
-
     let dataToExport = [];
-
     if (activeTab === 'pending') dataToExport = [...inbox, ...backlog];
-
     else if (activeTab === 'history') dataToExport = filterList(history);
-
     else dataToExport = filterList(allDepartments);
 
-
-
     if (dataToExport.length === 0) return toast.error("No data to export");
-
     const headers = "Date,Department,Staff,Amount,Currency,Vendor,Status\n";
-
     const csv = dataToExport.map(r => {
-
       const cleanedAmount = parseFloat(String(r.amount || '0').replace(/[^0-9.]/g, '')) || 0;
-
       return `${new Date(r.createdAt).toLocaleDateString()},${r.department},${r.requesterName},${cleanedAmount},${getStandardCurrency(r.currency)},${r.vendorName || 'N/A'},${r.status}`;
-
     }).join("\n");
-
     const blob = new Blob([headers + csv], { type: 'text/csv' });
-
     const url = window.URL.createObjectURL(blob);
-
     const a = document.createElement('a');
-
     a.href = url;
-
     a.download = `Bricks_MD_Report_${new Date().toISOString().split('T')[0]}.csv`;
-
     a.click();
-
   };
-
-
 
   const handleAction = async (id, action, isOverride = false) => {
-
     if (!mdComment && action === 'Declined') return toast.error("Reason required to decline.");
-
     const loadingToast = toast.loading('Syncing executive decision...');
-
     try {
-
       await axios.post(`${API_BASE_URL}/requisitions/action/${id}`, {
-
         action,
-
         actorRole: 'MD',
-
         actorName: user.name || 'MD Office',
-
         actorEmail: user.email,
-
         comment: mdComment || (action === 'Approved' ? 'Final authorization granted.' : ''),
-
         isOverride
-
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-
-
       if (activeTab === 'all' && action === 'Approved') {
-
         toast.success("LOG MEMO SAVED", { id: loadingToast });
-
       } else {
-
         toast.success(action === 'Approved' ? "AUTHORIZED" : "DECLINED", { id: loadingToast });
-
       }
-
       
-
       setSelectedReq(null);
-
       setMdComment('');
-
       fetchData();
-
     } catch (err) {
-
       toast.error("Processing failed", { id: loadingToast });
-
     }
-
   };
 
-
-
   if (loading) return (
-
     <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-
       <div className="animate-spin h-10 w-10 border-4 border-[#A67C52] border-t-transparent rounded-full mb-4"></div>
-
       <p className="text-[10px] font-black tracking-widest text-[#A67C52] uppercase">Syncing Executive Portal...</p>
-
     </div>
-
   );
-
-
 
   return (
-
     <div className="min-h-screen bg-[#FBFBFB] uppercase">
+      {/* INJECT ANIMATION STYLES FOR FLASHING AMBER LIGHT */}
+      <style>{`
+        @keyframes flashAmber {
+          0%, 100% { opacity: 1; background-color: rgba(245, 158, 11, 0.15); border-color: rgb(245, 158, 11); }
+          50% { opacity: 0.4; background-color: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.3); }
+        }
+        .flash-amber-light {
+          animation: flashAmber 1.5s infinite ease-in-out;
+        }
+      `}</style>
 
       {/* NAVBAR */}
-
       <nav className="bg-black text-white px-8 py-4 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
-
         <div className="flex items-center gap-3">
-
           <div className="w-8 h-8 bg-[#A67C52] rounded-lg flex items-center justify-center font-black">B</div>
-
           <div>
-
             <h1 className="text-xs font-black tracking-widest text-[#A67C52]">Bricks Executive</h1>
-
             <p className="text-[8px] font-bold text-gray-500 uppercase italic">Managing Director Portal</p>
-
           </div>
-
         </div>
-
         
-
         <div className="flex items-center gap-4">
-
           {!notificationsEnabled && (
-
              <button onClick={handleEnableNotifications} className="hidden md:flex bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[9px] font-black hover:bg-[#A67C52] transition-all">
-
                🔔 ENABLE ALERTS
-
              </button>
-
           )}
-
           <button onClick={() => setShowProfile(!showProfile)} className="w-10 h-10 rounded-full border-2 border-[#A67C52] flex items-center justify-center bg-gray-900 shadow-lg active:scale-90 transition-all">
-
              <span className="text-[10px] font-black text-white">{user?.name?.substring(0,2).toUpperCase() || 'EM'}</span>
-
           </button>
-
         </div>
-
       </nav>
 
-
-
       {showProfile && (
-
         <div className="fixed top-20 right-8 z-[60] w-72 bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-6 animate-in slide-in-from-top-4 duration-300">
-
           <div className="text-center mb-6">
-
             <div className="w-20 h-20 bg-gray-50 border border-gray-100 rounded-[1.5rem] mx-auto mb-3 flex items-center justify-center text-2xl font-black text-[#A67C52]">
-
               {user?.name?.substring(0,2).toUpperCase() || 'EM'}
-
             </div>
-
             <h4 className="text-sm font-black text-gray-900 leading-none">{user.name || 'Emmanuel Maiguwa'}</h4>
-
             <p className="text-[9px] font-bold text-[#A67C52] mt-2 tracking-widest">MANAGING DIRECTOR</p>
-
           </div>
-
           <div className="space-y-2 border-t border-gray-50 pt-4">
-
             <button onClick={() => { localStorage.clear(); navigate('/'); }} className="w-full text-left px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all">
-
               SIGN OUT
-
             </button>
-
           </div>
-
         </div>
-
       )}
-
-
 
       <main className="max-w-7xl mx-auto p-6">
-
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-8 gap-6 mt-4">
-
           <div>
-
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic leading-none">MD <span className="text-[#A67C52]">DASHBOARD</span></h2>
-
             <div className="flex gap-6 mt-6">
-
               <button onClick={() => setActiveTab('pending')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'pending' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>PENDING APPROVAL</button>
-
               <button onClick={() => setActiveTab('history')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>APPROVAL HISTORY ({history.length})</button>
-
               <button onClick={() => setActiveTab('all')} className={`text-[10px] font-black tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'all' ? 'border-[#A67C52] text-black' : 'border-transparent text-gray-400'}`}>ALL DEPARTMENTS ({allDepartments.length})</button>
-
             </div>
-
           </div>
-
-
 
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-
             {/* NAIRA APPROVED CARD */}
-
             <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
-
               <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
-
                 Authorized By You (NGN)
-
               </p>
-
               <p className="text-xs font-black tracking-tight mt-1 text-white">
-
                 NGN {totalsByCurrency.NGN.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-
               </p>
-
             </div>
-
-
 
             {/* DOLLAR APPROVED CARD */}
-
             <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
-
               <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
-
                 Authorized By You (USD)
-
               </p>
-
               <p className="text-xs font-black tracking-tight mt-1 text-white">
-
                 USD ${totalsByCurrency.USD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-
               </p>
-
             </div>
-
-
 
             <input 
-
               type="text" 
-
               placeholder="SEARCH RECORDS..." 
-
               className="bg-white border-2 border-gray-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-[#A67C52] shadow-sm flex-1 min-w-[180px]" 
-
               onChange={(e) => setSearchTerm(e.target.value)} 
-
             />
-
             <button onClick={exportData} className="bg-black text-white px-6 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all shadow-lg">EXPORT CSV</button>
-
           </div>
-
         </div>
-
-
 
         {activeTab === 'pending' && (
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
             <section className="space-y-4">
-
               <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
-
                 <h3 className="text-[10px] font-black text-[#A67C52] tracking-[0.3em]">Direct Authorization</h3>
-
                 <span className="bg-[#A67C52] text-white text-[8px] font-black px-2 py-0.5 rounded-full">{inbox.length}</span>
-
               </div>
-
               {filterList(inbox).map(req => {
-
                 const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
-
                 const standardCurrency = getStandardCurrency(req.currency);
-
-
+                const priority = getHODPriority(req);
+                const isUrgent = priority === 'URGENT' || priority === 'HIGH';
 
                 return (
-
-                  <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-left-2">
-
+                  <div key={req._id} className={`bg-white p-6 rounded-[2.5rem] border shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-left-2 ${isUrgent ? 'flash-amber-light border-amber-500' : 'border-gray-100'}`}>
                     <div>
-
-                      <p className="text-[8px] font-black text-gray-400 mb-1">{req.department}</p>
-
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-[8px] font-black text-gray-400">{req.department}</p>
+                        {isUrgent && (
+                          <span className="bg-amber-500 text-white text-[7px] font-black px-2 py-0.5 rounded-full tracking-widest animate-pulse">
+                            ⚡ {priority}
+                          </span>
+                        )}
+                      </div>
                       <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-
                       <p className="text-lg font-black text-[#A67C52] leading-none mt-1">{standardCurrency} {cleanedAmount.toLocaleString('en-US')}</p>
-
                     </div>
-
                     <button onClick={() => setSelectedReq(req)} className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-
                       PROCESS
-
                     </button>
-
                   </div>
-
                 );
-
               })}
-
               {inbox.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic underline decoration-[#A67C52] underline-offset-4">Queue empty</p>}
-
             </section>
-
-
 
             <section className="space-y-4">
-
               <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
-
                 <h3 className="text-[10px] font-black text-red-500 tracking-[0.3em]">FC Oversight (Override)</h3>
-
                 <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{backlog.length}</span>
-
               </div>
+              {filterList(backlog).map(req => {
+                const priority = getHODPriority(req);
+                const isUrgent = priority === 'URGENT' || priority === 'HIGH';
 
-              {filterList(backlog).map(req => (
-
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border-l-4 border-l-red-500 border-gray-100 shadow-sm flex justify-between items-center opacity-80 hover:opacity-100 transition-all">
-
-                  <div>
-
-                    <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-
-                    <p className="text-[9px] font-bold text-red-500 italic mt-1 uppercase">Awaiting Finance Clearance</p>
-
+                return (
+                  <div key={req._id} className={`bg-white p-6 rounded-[2.5rem] border-l-4 border-l-red-500 shadow-sm flex justify-between items-center opacity-80 hover:opacity-100 transition-all ${isUrgent ? 'flash-amber-light' : 'border-gray-100'}`}>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {isUrgent && (
+                          <span className="bg-amber-500 text-white text-[7px] font-black px-2 py-0.5 rounded-full tracking-widest animate-pulse">
+                            ⚡ {priority}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
+                      <p className="text-[9px] font-bold text-red-500 italic mt-1 uppercase">Awaiting Finance Clearance</p>
+                    </div>
+                    <button onClick={() => { setSelectedReq({ ...req, isOverride: true }) }} className="bg-red-500 text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all">
+                      OVERRIDE
+                    </button>
                   </div>
-
-                  <button onClick={() => { setSelectedReq({ ...req, isOverride: true }) }} className="bg-red-500 text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black transition-all">
-
-                    OVERRIDE
-
-                  </button>
-
-                </div>
-
-              ))}
-
+                );
+              })}
               {backlog.length === 0 && <p className="text-center py-10 text-gray-300 text-[10px] font-black italic">No overrides needed</p>}
-
             </section>
-
           </div>
-
         )}
-
-
 
         {activeTab === 'history' && (
-
           <RequisitionHistory requisitions={filterList(history)} />
-
         )}
-
-
 
         {activeTab === 'all' && (
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
             {filterList(allDepartments).map(req => {
-
               const cleanedAmount = parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')) || 0;
-
               const standardCurrency = getStandardCurrency(req.currency);
-
-
+              const priority = getHODPriority(req);
+              const isUrgent = priority === 'URGENT' || priority === 'HIGH';
 
               return (
-
-                <div key={req._id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2">
-
+                <div key={req._id} className={`bg-white p-6 rounded-[2.5rem] border shadow-sm flex justify-between items-center hover:shadow-md transition-all animate-in slide-in-from-top-2 ${isUrgent ? 'flash-amber-light border-amber-500' : 'border-gray-100'}`}>
                   <div>
-
                     <div className="flex items-center gap-2 mb-1">
-
                       <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-
                         req.status === 'Paid' ? 'bg-green-50 text-green-600' : 
-
                         req.status === 'Declined' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
-
                       }`}>{req.status}</span>
-
                       <span className="bg-gray-100 text-gray-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">STAGE: {req.currentStage}</span>
-
                       <span className="text-gray-400 font-bold text-[8px] tracking-widest">{req.department}</span>
-
+                      {isUrgent && (
+                        <span className="bg-amber-500 text-white text-[7px] font-black px-2 py-0.5 rounded-full tracking-widest animate-pulse">
+                          ⚡ {priority}
+                        </span>
+                      )}
                     </div>
-
                     <h4 className="font-black text-gray-800 text-sm tracking-tight">{req.vendorName || req.requesterName}</h4>
-
                     <p className="text-base font-black text-[#A67C52] leading-none mt-1">{standardCurrency} {cleanedAmount.toLocaleString('en-US')}</p>
-
                   </div>
-
                   <button onClick={() => setSelectedReq({ ...req, isArchiveView: true })} className="bg-gray-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] transition-all">
-
                     VIEW
-
                   </button>
-
                 </div>
-
               );
-
             })}
-
             {allDepartments.length === 0 && (
-
               <div className="col-span-full text-center py-20 text-gray-300 text-[10px] font-black italic">No historic files recorded</div>
-
             )}
-
           </div>
-
         )}
-
       </main>
 
-
-
       {selectedReq && (
-
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-
           <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-
             <div className="p-8 md:p-12 overflow-y-auto max-h-[90vh]">
-
               <div className="flex justify-between items-start mb-8">
-
                 <div>
-
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
-
                     {selectedReq.isArchiveView ? 'ALL REQUEST RECORDS' : selectedReq.isOverride ? 'Executive Override' : 'Final Authorization'}
-
                   </h3>
-
-                  <p className="text-[10px] font-bold text-gray-400 mt-4 tracking-widest uppercase">
-
-                    ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
-
-                  </p>
-
+                  <div className="flex items-center gap-3 mt-4">
+                    <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">
+                      ID: #{selectedReq._id.slice(-6)} | DEPT: {selectedReq.department}
+                    </p>
+                    {(getHODPriority(selectedReq) === 'URGENT' || getHODPriority(selectedReq) === 'HIGH') && (
+                      <span className="bg-amber-500 text-white text-[8px] font-black px-2.5 py-0.5 rounded-full tracking-widest animate-pulse">
+                        ⚡ HOD PRIORITY: {getHODPriority(selectedReq)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-
                 <button onClick={() => setSelectedReq(null)} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
-
               </div>
-
-
 
               {/* OVERRIDE BADGE */}
-
               {selectedReq.isOverride && (
-
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-[2rem] text-[9px] font-black uppercase tracking-widest flex items-center gap-3">
-
                   <span>⚠️</span> YOU ARE PERFORMING A FINANCE OVERRIDE ON THIS REQUEST
-
                 </div>
-
               )}
 
-
-
               {/* CORE METRICS GRID */}
-
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Authorized Value</p>
-
                   <p className="text-xl font-black text-[#A67C52]">
-
                     {getStandardCurrency(selectedReq.currency)} {parseFloat(String(selectedReq.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString('en-US')}
-
                   </p>
-
                 </div>
-
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">P.O Number</p>
-
                   <p className="text-xs font-black text-gray-800">{selectedReq.poNumber || 'N/A'}</p>
-
                 </div>
-
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">DA Ref No</p>
-
                   <p className="text-xs font-black text-gray-800">{selectedReq.daRefNo || 'N/A'}</p>
-
                 </div>
-
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Payment Status</p>
-
                   <p className={`text-xs font-black ${selectedReq.paymentStatus === 'Paid' || selectedReq.clientPaymentStatus === 'Paid' ? 'text-green-600' : 'text-orange-500'}`}>
-
                     {selectedReq.paymentStatus || selectedReq.clientPaymentStatus || 'N/A'}
-
                   </p>
-
                 </div>
-
               </div>
-
-
 
               {/* SECONDARY INFO GRID */}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-
                 <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-
                   <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Staff / Vendor</p>
-
                   <p className="text-[11px] font-black text-gray-800 uppercase">
-
                     {selectedReq.requesterName} {selectedReq.vendorName ? `→ ${selectedReq.vendorName}` : ''}
-
                   </p>
-
                 </div>
-
                 <div className="bg-gray-900 p-6 rounded-[2rem] border border-[#A67C52]/30 text-white">
-
                   <p className="text-[9px] font-black text-[#A67C52] mb-1 uppercase tracking-widest">Account Details</p>
-
                   <p className="text-[10px] font-bold tracking-wider leading-relaxed">
-
                     {selectedReq.beneficiaryDetails || selectedReq.accountDetails || 'NOT SPECIFIED'}
-
                   </p>
-
                 </div>
-
               </div>
-
-
 
               <div className="space-y-6 mb-10">
-
                 <div className="bg-[#FBF9F6] p-6 rounded-[2rem] border border-gray-100 shadow-inner">
-
                   <p className="text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Request Narrative</p>
-
                   <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
-
                     "{selectedReq.requestNarrative || selectedReq.description || 'No description provided.'}"
-
                   </p>
-
                 </div>
-
-
 
                 {/* HOD AND FC REMARKS */}
-
                 <div className="space-y-4">
-
                   {(() => {
-
                     const hod = getHODComment(selectedReq.approvalHistory);
-
                     const fc = getFCComment(selectedReq.approvalHistory);
-
                     if (!hod && !fc) return null;
-
                     return (
-
                       <>
-
                         {hod && (
-
                           <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-[2rem] border border-blue-100">
-
                             <p className="text-[9px] font-black text-blue-500 mb-2 uppercase tracking-[0.2em]">Head of Dept Remarks ({hod.name})</p>
-
                             <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">"{hod.comment}"</p>
-
                           </div>
-
                         )}
-
                         {fc && (
-
                           <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-[2rem] border border-red-100">
-
                             <p className="text-[9px] font-black text-red-500 mb-2 uppercase tracking-[0.2em]">Finance Controller Remarks</p>
-
                             <p className="text-[11px] font-bold text-gray-700 italic leading-relaxed">"{fc}"</p>
-
                           </div>
-
                         )}
-
                       </>
-
                     );
-
                   })()}
-
                 </div>
-
-
 
                 <div className="border-2 border-dashed border-gray-100 rounded-[2.5rem] p-4 bg-gray-50 overflow-hidden">
-
                   <p className="text-[9px] font-black text-gray-400 mb-4 ml-2 uppercase tracking-widest">Supporting Documentation Preview</p>
-
                   <div className="w-full bg-white rounded-[2rem] p-4 min-h-[400px]">
-
                     <AttachmentViewer url={selectedReq.attachmentUrl} />
-
                   </div>
-
                 </div>
-
               </div>
 
-
-
+              {/* MD FINAL INSTRUCTION SECTION */}
               <div className="border-t border-gray-100 pt-8">
-
                 <p className="text-[9px] font-black text-gray-400 mb-3 uppercase tracking-widest italic">
-
                   {selectedReq.isArchiveView ? 'Append Audit / Structural Memo' : 'MD Disbursement Instructions'}
-
                 </p>
-
                 
-
                 {!selectedReq.isArchiveView && (
-
                   <select 
-
                     onChange={(e) => setMdComment(e.target.value)}
-
                     className="w-full mb-4 bg-gray-50 border-2 border-gray-100 rounded-xl p-4 text-[10px] font-bold text-gray-600 outline-none focus:border-[#A67C52]"
-
                   >
-
                     <option value="">-- SELECT QUICK INSTRUCTION --</option>
-
                     {APPROVAL_TEMPLATES.map((t, i) => <option key={i} value={t}>{t}</option>)}
-
                   </select>
-
                 )}
 
-
-
                 <textarea 
-
                   value={mdComment} 
-
                   onChange={(e) => setMdComment(e.target.value)} 
-
                   placeholder={selectedReq.isArchiveView ? "Add executive structural notes to history log..." : selectedReq.isOverride ? "Provide reason for finance override..." : "Final notes for accounting department..."}
-
                   className="w-full h-28 bg-gray-50 border-2 border-transparent rounded-[2.5rem] p-6 text-xs font-bold outline-none focus:border-[#A67C52] focus:bg-white transition-all mb-6"
-
                 />
-
                 
-
                 <div className="flex flex-col md:flex-row gap-4">
-
                   <button 
-
                     onClick={() => handleAction(selectedReq._id, 'Approved', selectedReq.isOverride)} 
-
                     className="flex-1 bg-[#A67C52] text-white py-5 rounded-[2rem] text-[10px] font-black tracking-widest shadow-xl shadow-[#A67C52]/20 hover:scale-[1.02] active:scale-95 transition-all"
-
                   >
-
                     {selectedReq.isArchiveView ? 'LOG VIEW COMMENT' : 'AUTHORIZE PAYMENT'}
-
                   </button>
-
                   {!selectedReq.isArchiveView && (
-
                     <button 
-
                       onClick={() => handleAction(selectedReq._id, 'Declined', selectedReq.isOverride)} 
-
                       className="flex-1 bg-white border-2 border-red-50 text-red-400 py-5 rounded-[2rem] text-[10px] font-black tracking-widest hover:bg-red-50 transition-all active:scale-95"
-
                     >
-
                       DECLINE
-
                     </button>
-
                   )}
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   );
-
 };
-
-
 
 export default MDDashboard;
