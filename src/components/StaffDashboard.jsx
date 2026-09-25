@@ -49,7 +49,7 @@ function StaffDashboard() {
     return c;
   };
 
-  // Calculate totals separated by currency key (NGN, USD, EUR, GBP, etc.)
+  // Calculate totals separated by currency key (NGN, USD, etc.) - Excluding pending/unapproved
   const totalsByCurrency = myRequests
     .filter(req => {
       const status = String(req.status || '').toUpperCase().trim();
@@ -231,24 +231,20 @@ function StaffDashboard() {
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
               </div>
 
-              {/* DYNAMIC STAT CARDS CONTAINER */}
+              {/* DYNAMIC STAT CARDS CONTAINER (Guaranteed to show NGN, USD, plus any other active currency with 0 or accumulated sum) */}
               <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                {/* Loop dynamically through all active currencies present in totals */}
-                {Object.keys(totalsByCurrency).length === 0 ? (
-                  <div className="flex-1 min-w-[140px] bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black">
-                    <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Disbursed (NGN)</p>
-                    <p className="text-xs font-black tracking-tight mt-1 text-white">NGN 0</p>
-                  </div>
-                ) : (
-                  Object.entries(totalsByCurrency).map(([curr, totalVal]) => (
+                {Array.from(new Set(['NGN', 'USD', ...myRequests.map(req => getStandardCurrency(req.currency))])).map((curr) => {
+                  const totalVal = totalsByCurrency[curr] || 0;
+                  
+                  return (
                     <div key={curr} className="flex-1 min-w-[140px] bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black">
                       <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">Disbursed ({curr})</p>
                       <p className="text-xs font-black tracking-tight mt-1 text-white">
                         {curr} {totalVal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </p>
                     </div>
-                  ))
-                )}
+                  );
+                })}
 
                 {/* TOTAL FILES BADGE */}
                 <div className="flex-1 min-w-[110px] text-center text-[10px] font-black text-[#A67C52] uppercase tracking-[0.1em] bg-[#FBF9F6] border border-[#A67C52]/10 px-5 py-4 rounded-2xl shadow-inner">
