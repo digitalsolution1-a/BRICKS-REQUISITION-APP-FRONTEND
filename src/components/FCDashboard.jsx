@@ -31,6 +31,8 @@ const FCDashboard = () => {
     const c = String(currencyStr).trim().toUpperCase();
     if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
     if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
+    if (c === '€' || c === 'EUR' || c === 'EURO') return 'EUR';
+    if (c === '£' || c === 'GBP' || c === 'POUND') return 'GBP';
     return c;
   };
 
@@ -113,7 +115,7 @@ const FCDashboard = () => {
     );
   };
 
-  // Calculate total amounts vetted/approved by THIS SPECIFIC FC
+  // Calculate total amounts vetted/approved by THIS SPECIFIC FC across all currencies
   // excluding any requisitions that were later rejected or declined downstream
   const computeFCApprovedTotals = () => {
     const approvedList = filterList(history).filter((req) => {
@@ -157,7 +159,7 @@ const FCDashboard = () => {
         acc[currency] = (acc[currency] || 0) + cleanedAmount;
         return acc;
       },
-      { NGN: 0, USD: 0 }
+      {}
     );
   };
 
@@ -280,25 +282,20 @@ const FCDashboard = () => {
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-            {/* NAIRA VETTED/APPROVED CARD */}
-            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
-              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
-                Vetted By You (NGN)
-              </p>
-              <p className="text-xs font-black tracking-tight mt-1 text-white">
-                NGN {totalsByCurrency.NGN.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-
-            {/* DOLLAR VETTED/APPROVED CARD */}
-            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
-              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
-                Vetted By You (USD)
-              </p>
-              <p className="text-xs font-black tracking-tight mt-1 text-white">
-                USD ${totalsByCurrency.USD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-              </p>
-            </div>
+            {/* DYNAMIC CURRENCY CARDS FOR FC VETTED/APPROVED TOTALS */}
+            {Array.from(new Set(['NGN', 'USD', 'EUR', 'GBP', ...Object.keys(totalsByCurrency)])).map((curr) => {
+              const totalVal = totalsByCurrency[curr] || 0;
+              return (
+                <div key={curr} className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+                  <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                    Vetted By You ({curr})
+                  </p>
+                  <p className="text-xs font-black tracking-tight mt-1 text-white">
+                    {curr} {totalVal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              );
+            })}
 
             <input 
               type="text" 
