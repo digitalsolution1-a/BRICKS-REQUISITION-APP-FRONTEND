@@ -258,6 +258,8 @@ function RequisitionForm() {
               <select name="currency" className="bg-gray-50 border-b-2 p-3 outline-none focus:border-[#A67C52] font-bold text-sm transition-all" onChange={handleInputChange}>
                 <option value="NGN">Naira (₦)</option>
                 <option value="USD">Dollar ($)</option>
+                <option value="EUR">Euro (€)</option>
+                <option value="GBP">Pound (£)</option>
                 <option value="OTHER">Other</option>
               </select>
               {formData.currency === 'OTHER' && (
