@@ -27,6 +27,8 @@ const AccountantDashboard = () => {
     const c = String(currencyStr).trim().toUpperCase();
     if (c === '$' || c === 'USD' || c === 'DOLLAR' || c === 'US DOLLAR') return 'USD';
     if (c === '₦' || c === 'NGN' || c === 'NAIRA') return 'NGN';
+    if (c === '€' || c === 'EUR' || c === 'EURO') return 'EUR';
+    if (c === '£' || c === 'GBP' || c === 'POUND') return 'GBP';
     return c;
   };
 
@@ -117,7 +119,7 @@ const AccountantDashboard = () => {
         acc[currency] = (acc[currency] || 0) + cleanedAmount;
         return acc;
       },
-      { NGN: 0, USD: 0 }
+      { NGN: 0, USD: 0, EUR: 0, GBP: 0 }
     );
   };
 
@@ -284,6 +286,26 @@ const AccountantDashboard = () => {
               </p>
               <p className="text-xs font-black tracking-tight mt-1 text-white">
                 USD ${totalsByCurrency.USD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+          {/* EUR PROCESSED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Processed (EUR)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                EUR €{totalsByCurrency.EUR.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* GBP PROCESSED CARD */}
+            <div className="bg-black text-white px-5 py-3 rounded-2xl shadow-md border border-black min-w-[150px]">
+              <p className="text-[8px] font-black text-[#A67C52] tracking-widest uppercase">
+                Processed (GBP)
+              </p>
+              <p className="text-xs font-black tracking-tight mt-1 text-white">
+                GBP £{totalsByCurrency.GBP.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </p>
             </div>
 
