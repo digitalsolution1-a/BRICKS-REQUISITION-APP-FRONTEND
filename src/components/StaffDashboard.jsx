@@ -49,7 +49,7 @@ function StaffDashboard() {
     return c;
   };
 
-  // Calculate totals separated by currency key (NGN, USD, etc.) - Excluding pending/unapproved
+  // Calculate totals separated by currency key (NGN, USD, EUR, GBP, etc.)
   const totalsByCurrency = myRequests
     .filter(req => {
       const status = String(req.status || '').toUpperCase().trim();
@@ -231,9 +231,9 @@ function StaffDashboard() {
                 <p className="text-[9px] font-black text-gray-400 mt-1 tracking-widest uppercase">Tracking your personal requisition history</p>
               </div>
 
-              {/* DYNAMIC STAT CARDS CONTAINER (Guaranteed to show NGN, USD, plus any other active currency with 0 or accumulated sum) */}
+              {/* DYNAMIC STAT CARDS CONTAINER */}
               <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                {Array.from(new Set(['NGN', 'USD', ...myRequests.map(req => getStandardCurrency(req.currency))])).map((curr) => {
+                {Array.from(new Set(['NGN', 'USD', 'EUR', 'GBP', ...myRequests.map(req => getStandardCurrency(req.currency))])).map((curr) => {
                   const totalVal = totalsByCurrency[curr] || 0;
                   
                   return (
