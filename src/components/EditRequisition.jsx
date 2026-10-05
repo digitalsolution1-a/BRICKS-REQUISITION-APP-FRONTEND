@@ -16,7 +16,7 @@ function EditRequisition() {
   const [file, setFile] = useState(null);
 
   const [formData, setFormData] = useState({
-    requestOption: 'New', requestType: '', procurementType: '', clientName: '', 
+    requesterName: '', requestOption: 'New', requestType: '', procurementType: '', clientName: '', 
     otherClient: '', vendorName: '', otherVendor: '', poNumber: '', 
     daRefNo: 'N/A', invoiceNo: '', clientPaymentStatus: 'N/A', 
     modeOfPayment: 'Cash', beneficiaryDetails: '', currency: 'NGN', 
