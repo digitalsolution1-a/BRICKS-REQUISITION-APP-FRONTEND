@@ -16,11 +16,11 @@ function EditRequisition() {
   const [file, setFile] = useState(null);
 
   const [formData, setFormData] = useState({
-    requesterName: '', requestOption: 'New',  requestType: '', procurementType: '', clientName: '', 
-    otherClient: '', vendorName: '', otherVendor: '', poNumber: '', 
-    daRefNo: 'N/A', invoiceNo: '', clientPaymentStatus: 'N/A', 
-    modeOfPayment: 'Cash', beneficiaryDetails: '', currency: 'NGN', 
-    otherCurrency: '', amount: '', amountInWords: '', dueDate: '', 
+    requesterName: '', requestOption: 'New', requestType: '', procurementType: '', clientName: '',  
+    otherClient: '', vendorName: '', otherVendor: '', poNumber: '',  
+    daRefNo: 'N/A', invoiceNo: '', clientPaymentStatus: 'N/A',  
+    modeOfPayment: 'Cash', beneficiaryDetails: '', currency: 'NGN',  
+    otherCurrency: '', amount: '', amountInWords: '', dueDate: '',  
     requestNarrative: '', department: '', hodForApproval: ''
   });
 
@@ -35,8 +35,17 @@ function EditRequisition() {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data) {
+          // Resolve name across different potential backend response structures
+          const resolvedRequesterName = 
+            res.data.requesterName || 
+            res.data.user?.name || 
+            res.data.user?.fullName || 
+            res.data.createdBy?.name || 
+            'Unknown';
+
           setFormData({
             ...res.data,
+            requesterName: resolvedRequesterName,
             dueDate: res.data.dueDate ? res.data.dueDate.split('T')[0] : ''
           });
         }
@@ -58,7 +67,6 @@ function EditRequisition() {
     e.preventDefault();
     setUpdating(true);
     
-    // Prepare data by overriding main fields if "Others" was selected
     const submissionData = { ...formData };
     if (submissionData.clientName === 'Others' && submissionData.otherClient) {
       submissionData.clientName = submissionData.otherClient;
@@ -72,7 +80,7 @@ function EditRequisition() {
 
     const data = new FormData();
     Object.keys(submissionData).forEach(key => {
-      if (key !== 'approvalHistory' && key !== '__v' && key !== '_id') {
+      if (key !== 'approvalHistory' && key !== '__v' && key !== '_id' && key !== 'user') {
         data.append(key, submissionData[key]);
       }
     });
@@ -103,10 +111,26 @@ function EditRequisition() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-6">
+          {/* Requester Name Display Field */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex flex-col">
+              <label className="text-[9px] text-gray-500 mb-1">Requester Name</label>
+              <input 
+                type="text" 
+                name="requesterName" 
+                value={formData.requesterName} 
+                readOnly 
+                disabled 
+                className="bg-gray-100 p-4 rounded-xl border-b-2 text-gray-600 cursor-not-allowed" 
+              />
+            </div>
             <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Request Option</label><select name="requestOption" value={formData.requestOption} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{["New", "Paid"].map(o => <option key={o} value={o}>{o}</option>)}</select></div>
             <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Department</label><select name="department" value={formData.department} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">HOD for Approval</label><select name="hodForApproval" value={formData.hodForApproval} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{HOD_EMAILS.map(h => <option key={h} value={h}>{h}</option>)}</select></div>
+            <div className="flex flex-col"></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
