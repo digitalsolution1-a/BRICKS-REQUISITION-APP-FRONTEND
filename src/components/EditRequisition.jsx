@@ -111,7 +111,7 @@ function EditRequisition() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-6">
-          {/* Requester Name Display Field */}
+          {/* Requester Name Field (Editable) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col">
               <label className="text-[9px] text-gray-500 mb-1">Requester Name</label>
@@ -119,9 +119,8 @@ function EditRequisition() {
                 type="text" 
                 name="requesterName" 
                 value={formData.requesterName} 
-                readOnly 
-                disabled 
-                className="bg-gray-100 p-4 rounded-xl border-b-2 text-gray-600 cursor-not-allowed" 
+                onChange={handleInputChange} 
+                className="bg-gray-50 p-4 rounded-xl border-b-2" 
               />
             </div>
             <div className="flex flex-col"><label className="text-[9px] text-gray-500 mb-1">Request Option</label><select name="requestOption" value={formData.requestOption} onChange={handleInputChange} className="bg-gray-50 p-4 rounded-xl border-b-2">{["New", "Paid"].map(o => <option key={o} value={o}>{o}</option>)}</select></div>
