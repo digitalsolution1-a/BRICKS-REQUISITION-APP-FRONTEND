@@ -199,19 +199,21 @@ const AccountantDashboard = () => {
     }
   };
 
-  const handleMarkAsPaidWithReceipt = async (id) => {
-    // Check if it's an IOU retirement or reconciliation request
-    const isRetirement = selectedReq.requestType?.toLowerCase().includes('retirement') || 
-                         selectedReq.requestType?.toLowerCase().includes('reconciliation') ||
-                         selectedReq.requestNarrative?.toLowerCase().includes('retirement') ||
-                         selectedReq.requestNarrative?.toLowerCase().includes('reconciliation');
+  const handleMarkAsPaidWithReceipt = async (id, skipReceiptCheck = false) => {
+    // Check if it's 'Previously Paid' or an IOU retirement/reconciliation request
+    const isPreviouslyPaidOrRetirement = 
+      selectedReq.requestOption?.toLowerCase().includes('previously paid') ||
+      selectedReq.requestType?.toLowerCase().includes('retirement') || 
+      selectedReq.requestType?.toLowerCase().includes('reconciliation') ||
+      selectedReq.requestNarrative?.toLowerCase().includes('retirement') ||
+      selectedReq.requestNarrative?.toLowerCase().includes('reconciliation');
 
-    // If it's a regular payment disbursement and no receipt is attached, require it
-    if (!isRetirement && !receiptFile) {
-      return toast.error("Please attach the payment receipt file.");
+    // If it's a regular payment disbursement and no receipt is attached, require it UNLESS explicitly skipped
+    if (!skipReceiptCheck && !isPreviouslyPaidOrRetirement && !receiptFile) {
+      return toast.error("Please select a receipt file first, or click 'Complete / Audit (No Receipt)' if no file is needed.");
     }
 
-    const loadingToast = toast.loading(isRetirement ? 'Auditing retirement & completing...' : 'Uploading receipt & finalizing payment...');
+    const loadingToast = toast.loading(skipReceiptCheck || isPreviouslyPaidOrRetirement ? 'Auditing and completing request...' : 'Uploading receipt & finalizing payment...');
     try {
       const formData = new FormData();
       if (receiptFile) {
@@ -220,7 +222,7 @@ const AccountantDashboard = () => {
       formData.append('action', 'Disburse');
       formData.append('actorRole', 'ACCOUNTANT');
       formData.append('actorName', user.name || 'Accounts Dept');
-      formData.append('comment', isRetirement ? 'Retirement audited & reconciled' : 'Payment Disbursed and Receipt Attached');
+      formData.append('comment', skipReceiptCheck || isPreviouslyPaidOrRetirement ? 'Previously paid / retirement audited & completed' : 'Payment Disbursed and Receipt Attached');
 
       await axios.put(`${API_BASE_URL}/requisitions/mark-paid/${id}`, formData, {
         headers: { 
@@ -229,7 +231,7 @@ const AccountantDashboard = () => {
         }
       });
 
-      toast.success(isRetirement ? "RETIREMENT COMPLETED & AUDITED" : "PAYMENT COMPLETED & RECEIPT ATTACHED", { id: loadingToast });
+      toast.success("REQUEST COMPLETED & AUDITED SUCCESSFULLY", { id: loadingToast });
       setSelectedReq(null);
       setReceiptFile(null);
       fetchData();
@@ -335,7 +337,7 @@ const AccountantDashboard = () => {
               className="bg-white border-2 border-gray-100 rounded-2xl px-6 py-4 text-[10px] font-bold flex-1 md:w-50 outline-none focus:border-[#A67C52] shadow-sm transition-all"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button onClick={exportToCSV} className="bg-black text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#A67C52] shadow-lg flex items-center gap-2">
+            <button onClick={exportToCSV} className="bg-black text-white px-6 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#A67C52] shadow-lg flex items-center gap-2">
               📥 EXPORT
             </button>
           </div>
@@ -360,6 +362,11 @@ const AccountantDashboard = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-blue-100 text-blue-600">PENDING REVIEW</span>
                       <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
+                      {req.requestOption && (
+                        <span className="text-[8px] font-black px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          {req.requestOption}
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
                     <div className="flex gap-6 mt-2">
@@ -395,6 +402,11 @@ const AccountantDashboard = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-green-100 text-green-600">READY FOR FAC</span>
                       <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
+                      {req.requestOption && (
+                        <span className="text-[8px] font-black px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          {req.requestOption}
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
                     <div className="flex gap-6 mt-2">
@@ -430,6 +442,11 @@ const AccountantDashboard = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-red-100 text-red-600 animate-pulse">🚨 URGENT IMMEDIATE PAYMENT</span>
                       <span className="text-gray-300 font-bold text-[9px] tracking-widest">#{req._id.slice(-6)}</span>
+                      {req.requestOption && (
+                        <span className="text-[8px] font-black px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          {req.requestOption}
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">{req.vendorName || "General Requisition"}</h2>
                     <div className="flex gap-6 mt-2">
@@ -495,9 +512,16 @@ const AccountantDashboard = () => {
                   <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic underline decoration-[#A67C52] decoration-4 underline-offset-8">
                     {selectedReq.isArchiveView ? 'System Audit Record' : 'Treasury Processing & Execution'}
                   </h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-5 tracking-widest uppercase">
-                    Reference ID: #{selectedReq._id.slice(-6)}
-                  </p>
+                  <div className="flex items-center gap-3 mt-4">
+                    <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">
+                      Reference ID: #{selectedReq._id.slice(-6)}
+                    </p>
+                    {selectedReq.requestOption && (
+                      <span className="text-[9px] font-black px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        TYPE: {selectedReq.requestOption}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button onClick={() => { setSelectedReq(null); setReceiptFile(null); }} className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center font-black hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
               </div>
@@ -537,11 +561,11 @@ const AccountantDashboard = () => {
                 </div>
               </div>
 
-              {/* RECEIPT UPLOAD SECTION (Optional for retirements/reconciliations) */}
+              {/* RECEIPT UPLOAD SECTION */}
               {!selectedReq.isArchiveView && (view === 'ready' || view === 'urgent' || selectedReq.currentStage === 'Ready for Fac') && (
                 <div className="bg-orange-50/50 border-2 border-dashed border-[#A67C52]/40 p-6 rounded-[2rem] mb-8">
                   <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 block tracking-widest">
-                    Upload Payment Receipt / Bank Teller (Optional for IOU Retirements / Reconciliations)
+                    Upload Payment Receipt / Bank Teller (Optional if marked as 'Previously Paid' or Retirement)
                   </label>
                   <input 
                     type="file" 
@@ -553,7 +577,7 @@ const AccountantDashboard = () => {
               )}
 
               {/* ACTION CONTROL BUTTONS */}
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row gap-4">
                 {selectedReq.isArchiveView ? (
                   <button onClick={() => setSelectedReq(null)} className="flex-1 bg-black text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-[#A67C52]">
                     CLOSE VIEW
@@ -563,9 +587,23 @@ const AccountantDashboard = () => {
                     MOVE TO READY FOR FAC
                   </button>
                 ) : (
-                  <button onClick={() => handleMarkAsPaidWithReceipt(selectedReq._id)} className="flex-1 bg-green-600 text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-black">
-                    COMPLETE & AUDIT PAYMENT
-                  </button>
+                  <>
+                    {/* OPTION 1: COMPLETE / AUDIT WITHOUT RECEIPT (For Previously Paid / Retirements) */}
+                    <button 
+                      onClick={() => handleMarkAsPaidWithReceipt(selectedReq._id, true)} 
+                      className="flex-1 bg-gray-900 text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-[#A67C52] transition-all"
+                    >
+                      ✓ COMPLETE & AUDIT (NO RECEIPT)
+                    </button>
+
+                    {/* OPTION 2: UPLOAD RECEIPT & COMPLETE (For New Bank Disbursements) */}
+                    <button 
+                      onClick={() => handleMarkAsPaidWithReceipt(selectedReq._id, false)} 
+                      className="flex-1 bg-green-600 text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.2em] shadow-xl hover:bg-black transition-all"
+                    >
+                      📥 UPLOAD RECEIPT & COMPLETE
+                    </button>
+                  </>
                 )}
               </div>
             </div>
