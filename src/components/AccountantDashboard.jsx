@@ -179,7 +179,6 @@ const AccountantDashboard = () => {
     a.click();
   };
 
-  // 1. Action: Move standard request to "Ready for Fac"
   const handleMoveToReadyForFac = async (id) => {
     const loadingToast = toast.loading('Moving to Ready for Fac...');
     try {
@@ -200,7 +199,6 @@ const AccountantDashboard = () => {
     }
   };
 
-  // 2. Action: Finalize payment with uploaded receipt (for Ready for Fac or Urgent items)
   const handleMarkAsPaidWithReceipt = async (id) => {
     if (!receiptFile) {
       return toast.error("Please attach the payment receipt file.");
@@ -250,7 +248,7 @@ const AccountantDashboard = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div className="hidden xl:flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
             <button onClick={() => setView('active')} className={`px-3 py-2 rounded-lg text-[8px] font-black transition-all ${view === 'active' ? 'bg-[#A67C52] text-black' : 'text-gray-400'}`}>
               ACTIVE ({requisitions.length})
@@ -301,13 +299,25 @@ const AccountantDashboard = () => {
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* NGN CARD */}
             <div className="bg-black text-white px-4 py-3 rounded-2xl shadow-md border border-black min-w-[130px]">
               <p className="text-[7px] font-black text-[#A67C52] tracking-widest uppercase">Processed (NGN)</p>
-              <p className="text-xs font-black tracking-tight mt-1">₦{totalsByCurrency.NGN.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+              <p className="text-xs font-black tracking-tight mt-1">NGN {totalsByCurrency.NGN.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
             </div>
+            {/* USD CARD */}
             <div className="bg-black text-white px-4 py-3 rounded-2xl shadow-md border border-black min-w-[130px]">
               <p className="text-[7px] font-black text-[#A67C52] tracking-widest uppercase">Processed (USD)</p>
-              <p className="text-xs font-black tracking-tight mt-1">${totalsByCurrency.USD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+              <p className="text-xs font-black tracking-tight mt-1">USD ${totalsByCurrency.USD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+            </div>
+            {/* EUR CARD */}
+            <div className="bg-black text-white px-4 py-3 rounded-2xl shadow-md border border-black min-w-[130px]">
+              <p className="text-[7px] font-black text-[#A67C52] tracking-widest uppercase">Processed (EUR)</p>
+              <p className="text-xs font-black tracking-tight mt-1">EUR €{totalsByCurrency.EUR.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+            </div>
+            {/* GBP CARD */}
+            <div className="bg-black text-white px-4 py-3 rounded-2xl shadow-md border border-black min-w-[130px]">
+              <p className="text-[7px] font-black text-[#A67C52] tracking-widest uppercase">Processed (GBP)</p>
+              <p className="text-xs font-black tracking-tight mt-1">GBP £{totalsByCurrency.GBP.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
             </div>
 
             <input 
@@ -336,7 +346,7 @@ const AccountantDashboard = () => {
           {view === 'active' && (
             <>
               {filterList(requisitions).map(req => (
-                <div key={req._id} className="bg-white rounded-[2.5ref] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+                <div key={req._id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition-all p-8 flex flex-col md:flex-row justify-between items-center gap-8">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-[8px] font-black px-3 py-1 rounded-full tracking-widest bg-blue-100 text-blue-600">PENDING REVIEW</span>
