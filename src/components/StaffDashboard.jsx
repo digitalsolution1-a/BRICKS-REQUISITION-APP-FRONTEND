@@ -191,10 +191,10 @@ function StaffDashboard() {
           </div>
           <div className="space-y-2 pt-4 border-t border-gray-50">
              <Link to="/profile" className="block w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-gray-50 hover:bg-[#A67C52] hover:text-white transition-all uppercase tracking-widest">
-                View Profile
+               View Profile
              </Link>
              <button onClick={handleLogout} className="w-full text-center px-4 py-3 rounded-xl text-[9px] font-black bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest">
-                Sign Out
+               Sign Out
              </button>
           </div>
         </div>
@@ -268,7 +268,7 @@ function StaffDashboard() {
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {searchTerm && (
                 <button 
@@ -331,6 +331,20 @@ function StaffDashboard() {
                             </span>
                           </td>
                           <td className="py-6 text-right flex justify-end gap-3 items-center">
+                            {/* DOWNLOAD RECEIPT BUTTON (If accountant uploaded a payment receipt) */}
+                            {req.paymentReceipt && (
+                              <a
+                                href={`${API_BASE_URL.replace('/api', '')}/${req.paymentReceipt}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="px-4 py-2.5 bg-emerald-600 hover:bg-black text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5"
+                                title="Download Payment Receipt"
+                              >
+                                📥 Receipt
+                              </a>
+                            )}
+
                             <button 
                               onClick={() => generateRequisitionPDF(req)}
                               className="w-10 h-10 bg-gray-50 hover:bg-black hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90 shadow-sm border border-gray-100"
