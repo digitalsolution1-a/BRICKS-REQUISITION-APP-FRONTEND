@@ -200,18 +200,27 @@ const AccountantDashboard = () => {
   };
 
   const handleMarkAsPaidWithReceipt = async (id) => {
-    if (!receiptFile) {
+    // Check if it's an IOU retirement or reconciliation request
+    const isRetirement = selectedReq.requestType?.toLowerCase().includes('retirement') || 
+                         selectedReq.requestType?.toLowerCase().includes('reconciliation') ||
+                         selectedReq.requestNarrative?.toLowerCase().includes('retirement') ||
+                         selectedReq.requestNarrative?.toLowerCase().includes('reconciliation');
+
+    // If it's a regular payment disbursement and no receipt is attached, require it
+    if (!isRetirement && !receiptFile) {
       return toast.error("Please attach the payment receipt file.");
     }
 
-    const loadingToast = toast.loading('Uploading receipt & finalizing payment...');
+    const loadingToast = toast.loading(isRetirement ? 'Auditing retirement & completing...' : 'Uploading receipt & finalizing payment...');
     try {
       const formData = new FormData();
-      formData.append('receipt', receiptFile);
+      if (receiptFile) {
+        formData.append('receipt', receiptFile);
+      }
       formData.append('action', 'Disburse');
       formData.append('actorRole', 'ACCOUNTANT');
       formData.append('actorName', user.name || 'Accounts Dept');
-      formData.append('comment', 'Payment Disbursed and Receipt Attached');
+      formData.append('comment', isRetirement ? 'Retirement audited & reconciled' : 'Payment Disbursed and Receipt Attached');
 
       await axios.put(`${API_BASE_URL}/requisitions/mark-paid/${id}`, formData, {
         headers: { 
@@ -220,7 +229,7 @@ const AccountantDashboard = () => {
         }
       });
 
-      toast.success("PAYMENT COMPLETED & RECEIPT ATTACHED", { id: loadingToast });
+      toast.success(isRetirement ? "RETIREMENT COMPLETED & AUDITED" : "PAYMENT COMPLETED & RECEIPT ATTACHED", { id: loadingToast });
       setSelectedReq(null);
       setReceiptFile(null);
       fetchData();
@@ -399,7 +408,7 @@ const AccountantDashboard = () => {
                         <p className="text-2xl font-black text-gray-900">{getStandardCurrency(req.currency)} {parseFloat(String(req.amount || '0').replace(/[^0-9.]/g, '')).toLocaleString()}</p>
                      </div>
                      <button onClick={() => setSelectedReq(req)} className="bg-green-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest hover:bg-black shadow-lg transition-all active:scale-95">
-                       ATTACH RECEIPT & PAY
+                       COMPLETE & AUDIT
                      </button>
                   </div>
                 </div>
@@ -528,10 +537,12 @@ const AccountantDashboard = () => {
                 </div>
               </div>
 
-              {/* RECEIPT UPLOAD SECTION FOR READY / URGENT ITEMS */}
+              {/* RECEIPT UPLOAD SECTION (Optional for retirements/reconciliations) */}
               {!selectedReq.isArchiveView && (view === 'ready' || view === 'urgent' || selectedReq.currentStage === 'Ready for Fac') && (
                 <div className="bg-orange-50/50 border-2 border-dashed border-[#A67C52]/40 p-6 rounded-[2rem] mb-8">
-                  <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 block tracking-widest">Upload Payment Receipt / Bank Teller (Required to complete)</label>
+                  <label className="text-[10px] font-black text-[#A67C52] uppercase mb-2 block tracking-widest">
+                    Upload Payment Receipt / Bank Teller (Optional for IOU Retirements / Reconciliations)
+                  </label>
                   <input 
                     type="file" 
                     onChange={(e) => setReceiptFile(e.target.files[0])} 
@@ -553,7 +564,7 @@ const AccountantDashboard = () => {
                   </button>
                 ) : (
                   <button onClick={() => handleMarkAsPaidWithReceipt(selectedReq._id)} className="flex-1 bg-green-600 text-white py-6 rounded-[2rem] text-[10px] font-black tracking-[0.3em] shadow-xl hover:bg-black">
-                    MARK AS PAID & ATTACH RECEIPT
+                    COMPLETE & AUDIT PAYMENT
                   </button>
                 )}
               </div>
