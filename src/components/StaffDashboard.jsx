@@ -331,10 +331,10 @@ function StaffDashboard() {
                             </span>
                           </td>
                           <td className="py-6 text-right flex justify-end gap-3 items-center">
-                            {/* DOWNLOAD RECEIPT BUTTON (If accountant uploaded a payment receipt) */}
+                            {/* DOWNLOAD RECEIPT BUTTON (Using direct Cloudinary URL) */}
                             {req.paymentReceipt && (
                               <a
-                                href={`${API_BASE_URL.replace('/api', '')}/${req.paymentReceipt}`}
+                                href={req.paymentReceipt}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 download
